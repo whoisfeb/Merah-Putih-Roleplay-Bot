@@ -1,0 +1,33 @@
+name: Merah Putih Bot
+
+on:
+  schedule:
+    - cron: '0 */5 * * *'
+  workflow_dispatch:
+
+# Tambahkan baris di bawah ini:
+concurrency:
+  group: bot-running
+  cancel-in-progress: true
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    # ... sisa kode lainnya
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Bot
+        run: node index.js
+        env:
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          # Kamu bisa tambah secret lain di sini jika ingin menyembunyikan No Rekening
