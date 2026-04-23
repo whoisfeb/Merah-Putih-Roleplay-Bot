@@ -1,0 +1,560 @@
+const { 
+    Client, 
+    GatewayIntentBits, 
+    EmbedBuilder, 
+    ActivityType, 
+    REST, 
+    Routes,
+    AttachmentBuilder,
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle
+} = require('discord.js');
+
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
+});
+
+// --- KONFIGURASI ---
+const CONFIG = {
+    TOKEN: process.env.DISCORD_TOKEN,
+    CLIENT_ID: '1496812134141526096', 
+    GUILD_ID: '1392382455876550796',  
+    ANNOUNCE_CHANNEL: '1496811675578269736',
+    LOG_CHANNEL: '1392382458615435266',
+    ADMIN_ROLE_ID: '1392382455981412393', 
+    QRIS_FILE_NAME: 'qrisgopay.png' ,
+    ALLOWED_CHANNELS: [
+        '1392382459060162631', 
+        '1392382459060162639',
+        '1392382458615435272'
+    ]
+};
+
+// --- DAFTAR KATA KASAR ---
+const BADWORDS = [
+  'free', 'tolol', 'goblok', 'bego', 'pepek', 'dongo', 'tai', 'kontol', 
+  'bio', 'sexcam', 'entot', 'ngentot', 'join', 'invite', 'anjing', 
+  'babi', 'memek', 'ngewe', 'ewe', 'lonte', 'pler', 'bgst', 'bangsat'
+];
+
+const RANDOM_MESSAGES = [
+    "Ayo Login dan Ramaikan Merah Putih Roleplay\n@everyone!",
+    "Halo apakabar semua ap akah kalian sehat sehat saja?\nAlhamdulillah jika anda sehat sehat saja\nAyo kita ramaikan Merah Putih Roleplay jika anda menemukan bug silahkan laporkan ke <#1496809960867106826>, namun jika anda melihat player yang melakukan kesalahan silahkan laporkan di <#1496810065158471751>\n@everyone",
+    "Merah Putih Roleplay adalah server terbaik sepanjang masa\n Jangan lupa share link discord Merah Putih Roleplay ke teman, keluarga atau bahkan grup sekolah kalian ya\nhttps://discord.gg\n@everyone.",
+    "Halo @everyone , seru ga bermain Merah Putih Roleplay? apa? anda baru join? kalau baru join langsung <#1392382456589717561>",
+    "Kami segenap pengurus Merah Putih Roleplay berterima kasih ke kalian yang telah mendukung komunitas ini \n @everyone!",
+    "Dihimbau kepada seluruh <@&1392382455876550799> untuk **tidak sembarangan bergabung (join) ke link Discord yang tidak jelas atau tidak resmi**.\n\nKami menemukan adanya beberapa link mencurigakan yang berpotensi:\n- Mengandung scam / penipuan\n- Phishing (pencurian akun)\n- Malware / virus\n\n🔒 **Keamanan akun adalah tanggung jawab masing-masing.**\nSegala bentuk kerugian akibat join link di luar server resmi bukan tanggung jawab pihak kami.\n\n📌 **Harap diperhatikan:**\n* Hanya join link yang dibagikan oleh admin resmi\n* Jangan mudah percaya dengan DM/link dari orang tidak dikenal\n\n**Tetap waspada dan jaga keamanan akun kalian.**\n\n- <@&1392382455876550799>\n@everyone",
+    "Halo <@&1392382455876550799> 👋\nKami menegaskan bahwa server ini memiliki kebijakan **ZERO TOLERANCE** terhadap segala bentuk pelecehan, baik secara verbal, tulisan, maupun tindakan dalam roleplay maupun di luar roleplay.\n\n⚠️ Termasuk:\n• Pelecehan seksual\n• Catcalling / komentar tidak pantas\n• DM tidak sopan / mengganggu\n• Body shaming\n• Candaan berlebihan yang bersifat merendahkan\n• Pelecehan OOC maupun IC \n\nTidak ada alasan \"bercanda\". Tidak ada alasan \"hanya RP\". Jika melewati batas, tindakan akan diambil.\n\n📩 Jika kalian mengalami atau melihat tindakan pelecehan: Segera laporkan ke admin disertai bukti yang valid. Sanksi tegas menanti dari warning hingga **BANNED PERMANENT**.\n@everyone",
+    "**INFO PERMASALAHAN SERVER**\n\n**Kesalahan Admin:** Dilarang debat OOC di game, lapor via ticket/channel resmi.\n**Bug / Error:** Wajib lapor! Dilarang memanfaatkan bug (abuse).\n**Report Player:** Gunakan fitur report dengan bukti jelas. Fitnah = Sanksi.\n**Kritik & Saran:** Sampaikan dengan sopan di channel yang disediakan.\n\nMari kita menjaga kenyamanan di Merah Putih Roleplay.\n#HAPPYROLEPLAY <@&1392382455876550799>\n@everyone",
+    "Di Merah Putih Roleplay, cerita besar dimulai dari langkah kecil. Ayo buat ceritamu!\n@everyone",
+    "Bukan seberapa hebat senjatamu, tapi seberapa kuat alur ceritamu di Merah Putih.\n@everyone",
+    "Jadilah legenda di kota ini, bukan sekadar nama di papan skor. Login sekarang!\n@everyone",
+    "Merah Putih Roleplay: Tempat di mana imajinasi bertemu dengan realita SAMP.\n@everyone",
+    "Karaktermu adalah cerminan dirimu, buatlah ia berkesan bagi warga lain.\n@everyone",
+    "Hargai setiap proses, karena setiap skenario punya makna mendalam.\n@everyone",
+    "Kota ini keras, tapi tekadmu harus lebih keras untuk bertahan di Merah Putih.\n@everyone",
+    "Di Merah Putih Roleplay, kita tidak hanya bermain, kita menciptakan sejarah bersama.\n@everyone",
+    "Roleplay bukan tentang menang atau kalah, tapi tentang rasa dan kualitas.\n@everyone",
+    "Jalin koneksi, bangun relasi, kuasai ekonomi Merah Putih Roleplay.\n@everyone",
+    "Aspal Merah Putih tidak pernah tidur, begitu juga dengan ambisi kami semua.\n@everyone",
+    "Satu peluru bisa mengakhiri hidup, tapi satu pengkhianatan mengakhiri segalanya.\n@everyone",
+    "Loyalitas itu mahal, jangan harapkan dari orang murahan di kota ini.\n@everyone",
+    "Kami bicara lewat aksi, bukan sekadar janji manis di depan SAPD.\n@everyone",
+    "Warna baju boleh beda, tapi rasa hormat antar player tetap yang utama.\n@everyone",
+    "Jangan cari masalah jika belum siap menanggung resiko di Merah Putih Roleplay!\n@everyone",
+    "Di gang sempit Merah Putih Roleplay, persaudaraan adalah segalanya bagi kami.\n@everyone",
+    "Sirine polisi adalah musik pengantar tidur bagi para outlaw kota.\n@everyone",
+    "Hati-hati berucap, dinding Merah Putih Roleplay punya telinga yang siap melapor.\n@everyone",
+    "Kekuasaan bukan diberikan, tapi direbut dengan keringat dan darah.\n@everyone",
+    "Melayani dengan hati, melindungi Merah Putih Roleplay dengan nyawa. Salam SAPD!\n@everyone",
+    "Jangan coba-coba lari, radar kami lebih luas dari pelarianmu warga!\n@everyone",
+    "Hukum adalah harga mati di Merah Putih Roleplay. Patuhi atau dipenjara!\n@everyone",
+    "Tangan kanan memegang borgol, tangan kiri memegang keadilan kota.\n@everyone",
+    "Sirene kami adalah peringatan, bukan ajakan untuk balapan liar.\n@everyone",
+    "Merah Putih Roleplay aman karena kami tetap berjaga saat kalian terlelap tidur.\n@everyone",
+    "Integritas adalah seragam yang kami pakai setiap hari bertugas.\n@everyone",
+    "Tidak ada tempat bagi kriminal di sudut kota Merah Putih Roleplay. Kami mengawasi!\n@everyone",
+    "Patroli pagi, amankan kota, demi Merah Putih Roleplay yang lebih baik lagi.\n@everyone",
+    "Tertib berlalu lintas atau siap-siap dompetmu terkuras denda!\n@everyone",
+    "Kerja keras di siang hari, party di malam hari. Itulah vibe Merah Putih Roleplay.\n@everyone",
+    "Dari supir taksi sampai CEO, semua punya cerita unik di Merah Putih Roleplay.\n@everyone",
+    "Cari uang halal itu susah, tapi di Merah Putih Roleplay selalu ada jalan bagi yang mau.\n@everyone",
+    "Mancing tenang di pier, sambil menunggu senja Merah Putih Roleplay yang indah.\n@everyone",
+    "Jangan remehkan warga sipil, kami adalah nyawa dari kota besar ini.\n@everyone",
+    "Membangun ekonomi kota, satu crate pada satu waktu. Semangat kerja!\n@everyone",
+    "Nge-bus dulu baru nge-boss, semuanya butuh proses dan kesabaran.\n@everyone",
+    "Merah Putih Roleplay: Tempat imajinasi bisa menjadi nyata dalam karakter.\n@everyone",
+    "Gaji masuk, dompet penuh, hati senang belanja di Merah Putih Roleplay.\n@everyone",
+    "Kopi hangat dan suasana kota Merah Putih Roleplay, kombinasi sempurna pagi ini.\n@everyone",
+    "Roleplay elit, bayar denda flatbed sulit. Ayo kerja jangan malas!\n@everyone",
+    "Bukannya takut polisi, cuma takut denda flatbed lebih mahal dari gaji.\n@everyone",
+    "Cintaku padamu seperti admin Merah Putih Roleplay, selalu mengawasi tiap saat.\n@everyone",
+    "Udah ganteng, udah keren, eh malah kena /jail gara-gara DM. Pelajari rules!\n@everyone",
+    "Hati ini bukan mobil yang bisa kamu repair seenaknya di mekanik.\n@everyone",
+    "Jangan nanya 'kapan nikah' di IC, nanya 'kapan bagi uang' aja lebih asik.\n@everyone",
+    "Jago nembak di server, tapi gak berani nembak gebetan di RL? Cupu!\n@everyone",
+    "Hidup itu seperti lag, kadang lancar kadang bikin emosi jiwa.\n@everyone",
+    "Lari dari kenyataan itu susah, mending lari dari kejaran SAPD kota.\n@everyone",
+    "Merah Putih Roleplay: Tempat di mana saya lebih kaya daripada dunia nyata.\n@everyone",
+    "Setiap orang punya topeng, di Merah Putih Roleplay kita bebas memilih peran kita.\n@everyone",
+    "Jangan biarkan emosi OOC merusak indahnya skenario IC yang sudah dibangun.\n@everyone",
+    "Hargai lawan roleplay-mu, karena tanpa mereka ceritamu hambar rasa.\n@everyone",
+    "Kejayaan itu sementara, tapi kesan yang kamu tinggalkan itu selamanya.\n@everyone",
+    "Belajarlah menghargai waktu orang lain di dalam kota saat berinteraksi.\n@everyone",
+    "Bukan tentang seberapa banyak uangmu, tapi seberapa berkualitas RP-mu.\n@everyone",
+    "Kesalahan adalah pelajaran, jangan baper jika kalah dalam skenario.\n@everyone",
+    "Merah Putih Roleplay adalah wadah kreativitas, dan kamu adalah senimannya.\n@everyone",
+    "Tinggalkan jejak baik di setiap sudut Merah Putih Roleplay hari ini.\n@everyone",
+    "Roleplay yang baik dimulai dari attitude player yang baik pula.\n@everyone",
+    "Stay Clean, Stay Merah Putih. Jaga nama baik komunitas kita bersama!\n@everyone",
+    "Merah Putih Roleplay: My City, My Rules. Mari kita ramaikan!\n@everyone",
+    "Born to be Merah Putih Roleplay. Buktikan kemampuanmu di dalam kota!\n@everyone",
+    "Loyalty Above All. Kesetiaan adalah segalanya di server ini.\n@everyone",
+    "Create Your Story. Jangan biarkan orang lain mengatur alur hidupmu.\n@everyone",
+    "Respect the Staff, Love the Community. Mari jaga keharmonisan kita.\n@everyone",
+    "No Merah Putih Roleplay, No Party. Login sekarang dan rasakan keseruannya!\n@everyone",
+    "Simpel tapi Berkualitas. Itulah standar Roleplay di Merah Putih Roleplay.\n@everyone",
+    "Rumah kedua: Merah Putih Roleplay Roleplay. Tempat pulang paling nyaman.\n@everyone",
+    "Justice for Merah Putih Roleplay. Tegakkan keadilan di setiap sudut jalanan!\n@everyone",
+    "Admin bukan tuhan, tapi penjaga kenyamanan kita semua di server.\n@everyone",
+    "Report jika butuh, jangan spam jika tak ingin di-kick dari server.\n@everyone",
+    "Komunitas sehat, Roleplay makin nikmat. Yuk jaga lisan dan ketikan.\n@everyone",
+    "Terima kasih Merah Putih Roleplay telah mempertemukan kami dengan kawan baru.\n@everyone",
+    "Saran kalian adalah pondasi kemajuan Merah Putih Roleplay ke depannya.\n@everyone",
+    "Dukung terus Merah Putih Roleplay agar makin didepan dan makin rame warga!\n@everyone",
+    "Staff ramah, warga betah. Itulah keunggulan Merah Putih Roleplay.\n@everyone",
+    "Beda kota, beda rasa, tapi Merah Putih Roleplay tetap juaranya di hati.\n@everyone",
+    "Kritik membangun, bukan menjatuhkan. Sampaikan dengan cara sopan.\n@everyone",
+    "Satu visi, satu misi, satu Merah Putih Roleplay selamanya.\n@everyone",
+    "Siapkan senjatamu, Merah Putih Roleplay sedang membara dengan persaingan!\n@everyone",
+    "Darah akan tumpah, kehormatan akan dipertaruhkan malam ini di kota.\n@everyone",
+    "Saatnya yang muda yang berkuasa di jalanan Merah Putih Roleplay.\n@everyone",
+    "Goncangkan kota dengan raungan mesin v8-mu warga! Ayo balapan!\n@everyone",
+    "Kegelapan mulai menyelimuti Merah Putih Roleplay, siapa yang akan bertahan hidup?\n@everyone",
+    "Jangan berkedip, atau kamu akan kehilangan momen berhargamu di kota.\n@everyone",
+    "Setiap detik di Merah Putih Roleplay adalah adrenalin yang tak terduga.\n@everyone",
+    "Buktikan kalau kamu memang layak menjadi warga Merah Putih Roleplay sejati.\n@everyone",
+    "Bangkit atau hancur di jalanan Merah Putih Roleplay. Pilihan ada di tanganmu.\n@everyone",
+    "Ini bukan sekadar permainan, ini adalah pertempuran mental dan taktik.\n@everyone",
+    "Masih ragu? Masuk dulu baru tahu serunya Merah Putih Roleplay sesungguhnya.\n@everyone",
+    "Undang temanmu, bangun dinasti terkuat di Merah Putih Roleplay Roleplay.\n@everyone",
+    "Bosan hidup biasa? Jadi luar biasa di Merah Putih Roleplay sekarang juga!\n@everyone",
+    "Temukan jati dirimu yang sebenarnya di dalam karakter unikmu.\n@everyone",
+    "Jangan cuma jadi penonton, jadilah pemeran utama di Merah Putih Roleplay!\n@everyone",
+    "Merah Putih Roleplay Roleplay menantang kreativitasmu dalam ber-roleplay.\n@everyone",
+    "Siapkan dirimu, sejarah besar kota ini akan segera diukir olehmu.\n@everyone",
+    "Merah Putih Roleplay: Merah Putih is not an act, it's a habit.\n@everyone"
+];
+
+// --- REGISTER SLASH COMMANDS ---
+const commands = [
+    {
+        name: 'payment',
+        description: 'Menampilkan informasi metode pembayaran resmi store',
+    },
+];
+
+const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
+
+async function registerCommands() {
+    try {
+        console.log('[SYSTEM] Mendaftarkan Slash Commands...');
+        await rest.put(
+            Routes.applicationGuildCommands(CONFIG.CLIENT_ID, CONFIG.GUILD_ID),
+            { body: commands },
+        );
+        console.log('[SYSTEM] Slash Commands berhasil didaftarkan!');
+    } catch (error) {
+        console.error(error);
+    }
+}
+
+client.once('ready', async () => {
+    console.log(`[LOG] Berhasil masuk sebagai ${client.user.tag}`);
+    await registerCommands();
+
+    // ========== SET STATUS BOT ==========
+    client.user.setPresence({
+        activities: [
+            { 
+                name: 'Ottibonynyo Mods', 
+                type: ActivityType.Playing 
+            }
+        ],
+        status: 'online',
+    });
+    console.log('[LOG] Status bot telah diubah menjadi ONLINE');
+    // ====================================
+
+    const logChannel = client.channels.cache.get(CONFIG.LOG_CHANNEL);
+    if (logChannel) {
+        const onlineEmbed = new EmbedBuilder()
+            .setColor(0x2ECC71)
+            .setTitle('🚀 System Core Online')
+            .addFields(
+                { name: '📡 Status', value: '` Online `', inline: true },
+                { name: '⚡ Latency', value: `\` ${client.ws.ping}ms \``, inline: true }
+            )
+            .setTimestamp();
+        logChannel.send({ embeds: [onlineEmbed] });
+    }
+
+    setInterval(() => {
+        const announceChannel = client.channels.cache.get(CONFIG.ANNOUNCE_CHANNEL);
+        if (announceChannel) {
+            const text = RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
+            announceChannel.send(`📢 **Merah Putih Roleplay**\n\n${text}`);
+        }
+    }, 3600000);
+});
+
+// --- EVENT: INTERACTION (SLASH COMMANDS & BUTTONS) ---
+client.on('interactionCreate', async (interaction) => {
+    
+    if (interaction.isChatInputCommand()) {
+        if (interaction.commandName === 'payment') {
+            
+            // CEK ROLE ID ADMIN
+            if (!interaction.member.roles.cache.has(CONFIG.ADMIN_ROLE_ID)) {
+                return interaction.reply({ 
+                    content: '❌ Kamu tidak memiliki izin (Role Admin) untuk menggunakan perintah ini!', 
+                    flags: 64
+                });
+            }
+
+            const paymentEmbed = new EmbedBuilder()
+                .setTitle('💳 METODE PEMBAYARAN RESMI')
+                .setColor(0x00FF00)
+                .setDescription('Pilih metode pembayaran yang kamu inginkan:')
+                .setFooter({ text: 'Community Store • Harap lampirkan bukti transfer.' })
+                .setTimestamp();
+
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('pay_bank_info')
+                        .setLabel('Transfer Bank')
+                        .setEmoji('🏦')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('pay_gopay_info')
+                        .setLabel('E-Wallet')
+                        .setEmoji('📱')
+                        .setStyle(ButtonStyle.Secondary),
+                    new ButtonBuilder()
+                        .setCustomId('pay_qris_info')
+                        .setLabel('QRIS')
+                        .setEmoji('📲')
+                        .setStyle(ButtonStyle.Success),
+                );
+
+            await interaction.reply({ 
+                embeds: [paymentEmbed],
+                components: [row],
+                flags: 64
+            });
+        }
+    }
+
+    if (interaction.isButton()) {
+        
+        // ============= TOMBOL: TRANSFER BANK =============
+        if (interaction.customId === 'pay_bank_info') {
+            const bankEmbed = new EmbedBuilder()
+                .setTitle('🏦 TRANSFER BANK')
+                .setColor(0x3498db)
+                .setDescription('Metode pembayaran melalui transfer bank ke rekening resmi kami.')
+                .addFields(
+                    {
+                        name: '📋 LANGKAH-LANGKAH:',
+                        value: `
+1️⃣ Catat nomor rekening bank di bawah
+2️⃣ Buka aplikasi perbankan (mobile/web)
+3️⃣ Pilih menu "Transfer Antar Bank"
+4️⃣ Masukkan nomor rekening tujuan
+5️⃣ Masukkan nominal transfer sesuai pesanan
+6️⃣ Konfirmasi dan selesaikan transaksi
+7️⃣ Screenshot bukti transfer (nomor referensi harus terlihat jelas)
+8️⃣ Kirim bukti ke admin di channel ini
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '💰 BANK BRI:',
+                        value: `
+**Nomor Rekening:**
+\`\`\`
+COMING SOON
+\`\`\`
+**Atas Nama:**
+\`\`\`
+COMING SOON
+\`\`\`
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '💰 BANK MANDIRI:',
+                        value: `
+**Nomor Rekening:**
+\`\`\`
+COMING SOON
+\`\`\`
+**Atas Nama:**
+\`\`\`
+COMING SOON
+\`\`\`
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '✅ SYARAT & KETENTUAN:',
+                        value: `
+✓ Gunakan bank yang sama dengan rekening Anda
+✓ Pastikan nominal transfer **TEPAT SESUAI** dengan yang diminta
+✓ Jangan mengurangi atau menambah nominal tanpa izin
+✓ Transfer harus dari rekening atas nama sendiri
+✓ Bukti transfer harus mencakup nomor referensi & nominal
+✓ Tunggu konfirmasi admin maksimal 1 jam
+✓ Jika belum dikonfirmasi, hubungi admin
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '❌ YANG TIDAK BOLEH DILAKUKAN:',
+                        value: `
+✗ JANGAN transfer dari rekening orang lain
+✗ JANGAN menambah/mengurangi nominal tanpa izin
+✗ JANGAN lupa screenshot bukti transfer
+✗ JANGAN dikirim ke admin via DM, gunakan channel resmi
+✗ JANGAN claim topup sebelum admin konfirmasi
+✗ JANGAN buat tiket baru jika sudah ada transaksi pending
+✗ JANGAN mencoba transfer berkali-kali dengan nominal berbeda
+                        `,
+                        inline: false
+                    }
+                )
+                .setFooter({ text: 'Community Store - Jika ada kendala, hubungi admin!' })
+                .setTimestamp();
+
+            await interaction.reply({ 
+                embeds: [bankEmbed],
+                flags: 0
+            });
+        }
+
+        // ============= TOMBOL: E-WALLET (GOPAY & DANA) =============
+        if (interaction.customId === 'pay_gopay_info') {
+            const ewalletEmbed = new EmbedBuilder()
+                .setTitle('📱 E-WALLET (GoPay & Dana)')
+                .setColor(0x1abc9c)
+                .setDescription('Metode pembayaran cepat melalui aplikasi e-wallet.')
+                .addFields(
+                    {
+                        name: '📋 LANGKAH-LANGKAH:',
+                        value: `
+1️⃣ Buka aplikasi GoPay atau Dana di HP Anda
+2️⃣ Pilih menu "Kirim Uang" atau "Transfer"
+3️⃣ Masukkan nomor telepon tujuan (lihat di bawah)
+4️⃣ Masukkan nominal transfer sesuai pesanan
+5️⃣ Masukkan PIN/password untuk konfirmasi
+6️⃣ Transfer akan langsung terproses
+7️⃣ Screenshot bukti transfer (tampilkan nomor pengirim & nominal)
+8️⃣ Kirim bukti ke admin di channel ini
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '💳 GOPAY:',
+                        value: `
+**Nomor GoPay:**
+\`\`\`
+COMING SOON
+\`\`\`
+**Atas Nama:**
+\`\`\`
+COMING SOON
+\`\`\`
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '💳 DANA:',
+                        value: `
+**Nomor Dana:**
+\`\`\`
+081368936839
+\`\`\`
+**Atas Nama:**
+\`\`\`
+Aldo Arnando
+\`\`\`
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '⚡ KECEPATAN TRANSAKSI:',
+                        value: `
+✓ GoPay: Transfer instant (langsung terproses)
+✓ Dana: Transfer instant (langsung terproses)
+✓ Konfirmasi admin: 15-30 menit
+✓ Tercepat dibanding bank transfer
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '✅ SYARAT & KETENTUAN:',
+                        value: `
+✓ Pastikan saldo e-wallet cukup sebelum transfer
+✓ Nominal transfer harus **TEPAT SESUAI** pesanan
+✓ Jangan kirim ke nomor lain selain nomor resmi kami
+✓ Gunakan fitur "Transfer ke GoPay/Dana"
+✓ Bukti transfer harus jelas menampilkan nomor & nominal
+✓ Konfirmasi dari admin akan dikirim via DM
+✓ Tidak ada biaya admin untuk transfer e-wallet
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '❌ YANG TIDAK BOLEH DILAKUKAN:',
+                        value: `
+✗ JANGAN transfer ke nomor lain (hanya ke nomor resmi)
+✗ JANGAN mengurangi nominal transfer
+✗ JANGAN kirim ke akun/nomor yang tidak terdaftar
+✗ JANGAN lupa screenshot bukti sebelum menutup app
+✗ JANGAN menggunakan akun yang bukan punya Anda
+✗ JANGAN dikirim via DM, gunakan channel topup resmi
+✗ JANGAN claim topup sebelum admin konfirmasi
+✗ JANGAN transfer berkali-kali dengan nominal sama
+                        `,
+                        inline: false
+                    }
+                )
+                .setFooter({ text: 'Merah Putih Roleplay x Ottibonynyo Mods!' })
+                .setTimestamp();
+
+            await interaction.reply({ 
+                embeds: [ewalletEmbed],
+                flags: 0
+            });
+        }
+
+        // ============= TOMBOL: QRIS =============
+        if (interaction.customId === 'pay_qris_info') {
+            const qrisEmbed = new EmbedBuilder()
+                .setTitle('📲 PEMBAYARAN QRIS')
+                .setColor(0x9b59b6)
+                .setDescription('Metode pembayaran paling cepat & aman menggunakan QRIS.')
+                .addFields(
+                    {
+                        name: '📋 LANGKAH-LANGKAH:',
+                        value: `
+1️⃣ Lihat gambar QRIS di bawah (scroll ke bawah)
+2️⃣ Buka aplikasi e-wallet (GoPay, Dana, OVO, dll)
+3️⃣ Pilih menu "Scan QRIS" atau "Bayar dengan QRIS"
+4️⃣ Arahkan kamera ke QR Code di bawah
+5️⃣ Tunggu sampai nominal muncul otomatis
+6️⃣ Verifikasi nominal sesuai pesanan Anda
+7️⃣ Masukkan PIN/password untuk konfirmasi
+8️⃣ Pembayaran akan langsung terproses
+9️⃣ Screenshot bukti pembayaran
+🔟 Kirim bukti ke admin di channel ini
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '⚡ KEUNTUNGAN QRIS:',
+                        value: `
+✓ Paling cepat - instant pembayaran
+✓ Bisa dari aplikasi e-wallet apapun
+✓ Aman - gunakan kamera, tidak perlu nomor rekening
+✓ Tidak ada biaya admin
+✓ Cocok untuk semua jenis e-wallet (GoPay, Dana, OVO, LinkAja, dll)
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '✅ SYARAT & KETENTUAN:',
+                        value: `
+✓ Pastikan smartphone Anda terhubung internet
+✓ Aplikasi e-wallet harus terinstall & aktif
+✓ Nominal akan muncul otomatis saat scan, sesuaikan dengan pesanan
+✓ Jangan ubah nominal tanpa izin admin
+✓ Screenshot bukti dengan jelas menampilkan waktu & nominal
+✓ Pastikan kamera smartphone dalam kondisi baik
+✓ Scan dari jarak 10-20cm untuk hasil optimal
+✓ Tunggu notifikasi sukses sebelum menutup aplikasi
+                        `,
+                        inline: false
+                    },
+                    {
+                        name: '❌ YANG TIDAK BOLEH DILAKUKAN:',
+                        value: `
+✗ JANGAN ubah nominal saat scan QRIS
+✗ JANGAN screenshot QR code untuk dikirim ke orang lain
+✗ JANGAN close aplikasi sebelum pembayaran selesai
+✗ JANGAN scan dari screenshot/foto (harus langsung scan)
+✗ JANGAN gunakan e-wallet orang lain
+✗ JANGAN lupa screenshot bukti pembayaran
+✗ JANGAN dikirim bukti via DM, gunakan channel resmi
+✗ JANGAN claim topup sebelum admin konfirmasi
+✗ JANGAN scan berkali-kali (hanya 1x pembayaran)
+✗ JANGAN share QRIS ke orang yang tidak berhak
+                        `,
+                        inline: false
+                    }
+                )
+                .setFooter({ text: 'Merah Putih Roleplay x Ottibonynyo Mods • Scan & Bayar dalam 30 detik!' })
+                .setTimestamp();
+
+            const qrisFile = new AttachmentBuilder(`./${CONFIG.QRIS_FILE_NAME}`);
+            
+            await interaction.reply({ 
+                embeds: [qrisEmbed],
+                files: [qrisFile],
+                flags: 0
+            });
+        }
+    }
+});
+
+// --- EVENT: MESSAGE MONITORING (ANTI-BADWORD & AUTO RESPONSE) ---
+client.on('messageCreate', async (message) => {
+    if (message.author.bot) return;
+
+    const foundBadWord = BADWORDS.find(word => {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        return regex.test(message.content);
+    });
+    
+    if (foundBadWord) {
+        try {
+            await message.delete();
+            return message.channel.send(`Hey ${message.author}, astagfirullah tidak boleh mengetik kata kata kasar yah sayang!`);
+        } catch (error) {
+            console.error('[ERROR] Gagal menghapus pesan kasar:', error);
+        }
+        return; 
+    }
+
+    if (CONFIG.ALLOWED_CHANNELS.includes(message.channel.id)) {
+        const autoResponses = [
+            `Halo <@${message.author.id}>! Ada yang bisa dibantu?`,
+            "Halo! kak kenapa nih apakah anda sedang kesusahan jika sedang kesusahan tunggu saja ya nanti akan di respon oleh <@&1435256476011860171>",
+            "Admin akan segera merespon chat kamu, mohon ditunggu ya.",
+            "Kenapa sayang ih, kamu kangen aku ya, jangan kangen kangen ya mending login aja.",
+            "Kenapa sayang kangen?, ih sini ||login|| ih bareng aku."
+        ];
+
+        if (Math.random() < 0.3) {
+            message.reply(autoResponses[Math.floor(Math.random() * autoResponses.length)]);
+        }
+    }
+});
+
+client.login(CONFIG.TOKEN);
