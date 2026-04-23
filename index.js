@@ -182,7 +182,7 @@ client.once('ready', async () => {
     client.user.setPresence({
         activities: [
             { 
-                name: 'Ottibonynyo Mods', 
+                name: 'Merah Putih Roleplay', 
                 type: ActivityType.Playing 
             }
         ],
