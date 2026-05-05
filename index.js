@@ -539,6 +539,11 @@ client.on('messageCreate', async (message) => {
     ) {
         return;
     }
+    // ✅ INI HARUS ADA SEBELUM DIPAKAI
+    const foundBadWord = BADWORDS.find(word => {
+        const regex = new RegExp(`\\b${word}\\b`, 'i');
+        return regex.test(message.content);
+    });
     
     if (foundBadWord) {
         try {
