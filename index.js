@@ -398,11 +398,11 @@ COMING SOON
                         value: `
 **Nomor Dana:**
 \`\`\`
-081368936839
+Coming Soon
 \`\`\`
 **Atas Nama:**
 \`\`\`
-Aldo Arnando
+Coming Soon
 \`\`\`
                         `,
                         inline: false
