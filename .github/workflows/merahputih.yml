@@ -1,33 +1,33 @@
 name: Merah Putih Bot
-
+concurrency:
+  group: merahputih-bot-group
+  cancel-in-progress: true
+  
 on:
   schedule:
-    - cron: '0 */5 * * *'
+    # Berjalan setiap 30 menit
+    - cron: '*/30 * * * *'
+  # Memungkinkan Anda menjalankan manual melalui tab "Actions"
   workflow_dispatch:
 
-# Tambahkan baris di bawah ini:
-concurrency:
-  group: bot-running
-  cancel-in-progress: true
-
 jobs:
-  run-bot:
+  sync:
     runs-on: ubuntu-latest
-    # ... sisa kode lainnya
+
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: '18'
 
       - name: Install Dependencies
         run: npm install
 
-      - name: Run Bot
-        run: node index.js
+      - name: Run Both Bots
+        # GANTI BAGIAN INI: Memanggil npm start agar menjalankan kedua file sekaligus
+        run: npm start 
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-          # Kamu bisa tambah secret lain di sini jika ingin menyembunyikan No Rekening
