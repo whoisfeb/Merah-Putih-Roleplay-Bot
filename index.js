@@ -554,12 +554,34 @@ client.on('messageCreate', async (message) => {
     
     if (foundBadWord) {
         try {
+            // hapus pesan pelanggar
             await message.delete();
-            return message.channel.send(`Hey ${message.author}, astagfirullah tidak boleh mengetik kata kata kasar yah sayang!`);
+    
+            // kirim warning
+            const warnMsg = await message.channel.send(
+                `Hey <@${message.author.id}>, astagfirullah tidak boleh mengetik kata kata kasar yah sayang!`
+            );
+    
+            // auto delete warning setelah 10 detik
+            setTimeout(() => {
+                warnMsg.delete().catch(() => {});
+            }, 10_000);
+    
+            // auto timeout 30 menit
+            if (message.member && message.guild) {
+                const timeoutDuration = 30 * 60 * 1000; // 30 menit
+    
+                await message.member.timeout(
+                    timeoutDuration,
+                    `Badword detected: ${foundBadWord}`
+                );
+            }
+    
         } catch (error) {
-            console.error('[ERROR] Gagal menghapus pesan kasar:', error);
+            console.error('[ERROR] Gagal memproses badword:', error);
         }
-        return; 
+    
+        return;
     }
 
     if (CONFIG.ALLOWED_CHANNELS.includes(message.channel.id)) {
