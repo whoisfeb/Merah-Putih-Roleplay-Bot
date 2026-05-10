@@ -22,7 +22,7 @@ const ADMIN_ROLE_IDS = [
     '1392382455947989066'
 ];
 
-const BAD_LINKS = ["free-nitro", "discord-gift", "steam-promo", "bit.ly/badlink"];
+const BAD_LINKS = ["free-nitro", "discord-gift", "steam-promo", "bit.ly/badlink", "https://discord.gg/", "https://discord.com/invite", "discord.gg", "cherry-girls"];
 
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
