@@ -10,7 +10,7 @@
     "axios": "^1.6.0"
   },
   "scripts": {
-    "start": "node index.js & node tiket.js",
+    "start": "node index.js & node tiket.js & node anti-link.js",
     "build": "echo 'No build step required'"
   }
 }
