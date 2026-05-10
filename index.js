@@ -224,13 +224,18 @@ client.on('interactionCreate', async (interaction) => {
     if (interaction.isChatInputCommand()) {
         if (interaction.commandName === 'payment') {
             
-            // CEK ROLE ID ADMIN
-            if (!interaction.member.roles.cache.has(CONFIG.ADMIN_ROLE_ID)) {
+                        // CEK ROLE ID ADMIN
+            const hasAdminRole = interaction.member.roles.cache.some(role => 
+                CONFIG.ADMIN_ROLE_ID.includes(role.id)
+            );
+
+            if (!hasAdminRole) {
                 return interaction.reply({ 
                     content: '❌ Kamu tidak memiliki izin (Role Admin) untuk menggunakan perintah ini!', 
                     flags: 64
                 });
             }
+
 
             const paymentEmbed = new EmbedBuilder()
                 .setTitle('💳 METODE PEMBAYARAN RESMI')
