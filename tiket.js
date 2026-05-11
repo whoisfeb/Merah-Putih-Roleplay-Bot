@@ -35,7 +35,7 @@ client.on('messageCreate', async (message) => {
     if (message.content === '!setup-tiket' && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
         const embed = new EmbedBuilder()
             .setTitle('🛒 Merah Putih Roleplay - Tiket Layanan')
-            .setDescription('Silakan klik tombol di bawah untuk memulai proses Top Up atau Bantuan.')
+            .setDescription('Silakan klik tombol di bawah untuk memulai proses Top Up atau melihat aturan.')
             .setColor('#5865F2')
             .setFooter({ text: 'Ottibonynyo Mods | Merah Putih' });
 
@@ -44,7 +44,12 @@ client.on('messageCreate', async (message) => {
                 .setCustomId('buka_modal')
                 .setLabel('Buka Tiket')
                 .setEmoji('🎫')
-                .setStyle(ButtonStyle.Primary)
+                .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+                .setCustomId('lihat_rules')
+                .setLabel('Rules Top Up')
+                .setEmoji('📜')
+                .setStyle(ButtonStyle.Secondary)
         );
 
         await message.channel.send({ embeds: [embed], components: [row] });
@@ -54,6 +59,23 @@ client.on('messageCreate', async (message) => {
 
 client.on('interactionCreate', async (interaction) => {
     
+    // --- 0. LOGIKA LIHAT RULES (EPHEMERAL) ---
+    if (interaction.isButton() && interaction.customId === 'lihat_rules') {
+        const rulesEmbed = new EmbedBuilder()
+            .setTitle('📜 Aturan Top Up - Merah Putih Roleplay')
+            .setColor('#f1c40f')
+            .setDescription(
+                "**1. Transaksi In-Game**\nSemua item topup baik itu kendaraan, rumah, atau bisnis **tidak dapat diperjualbelikan** dengan uang IC (Ingame).\n\n" +
+                "**2. Kesalahan Transfer**\nKesalahan dalam melakukan transfer **bukan tanggung jawab** dari pihak Merah Putih Roleplay. Mohon teliti sebelum mengirim.\n\n" +
+                "**3. Kebijakan Refund**\n**Tidak ada refund** setelah transaksi/pembayaran dilakukan, kecuali terdapat kesalahan teknis atau bug dari server.\n\n" +
+                "**4. Pelanggaran Sanksi**\nJika ketahuan melakukan pelanggaran yang berpotensi banned atau berpotensi hilangnya item topup, maka **tidak ada refund** terkait item donate yang hilang.\n\n" +
+                "**5. Larangan RMT**\nDilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned."
+            )
+            .setFooter({ text: 'Harap dipatuhi demi kenyamanan bersama.' });
+
+        return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
+    }
+
     // --- 1. MUNCULKAN FORM ---
     if (interaction.isButton() && interaction.customId === 'buka_modal') {
         const category = interaction.guild.channels.cache.get(CATEGORY_ID);
@@ -73,7 +95,7 @@ client.on('interactionCreate', async (interaction) => {
         const modal = new ModalBuilder().setCustomId('form_tiket').setTitle('Formulir Detail Pesanan');
         const ucp = new TextInputBuilder().setCustomId('ucp').setLabel("UCP / ID AKUN").setPlaceholder("Masukkan ID Akun Anda").setStyle(TextInputStyle.Short).setRequired(true);
         const nama = new TextInputBuilder().setCustomId('nama').setLabel("NAMA KARAKTER").setPlaceholder("Masukkan Nama Karakter").setStyle(TextInputStyle.Short).setRequired(true);
-        const item = new TextInputBuilder().setCustomId('item').setLabel("ITEM TOPUP").setPlaceholder("Contoh: 1000 Gold").setStyle(TextInputStyle.Paragraph).setRequired(true);
+        const item = new TextInputBuilder().setCustomId('item').setLabel("ITEM TOPUP").setPlaceholder("Contoh: 1000 Gold / Mobil Skyline").setStyle(TextInputStyle.Paragraph).setRequired(true);
 
         modal.addComponents(new ActionRowBuilder().addComponents(ucp), new ActionRowBuilder().addComponents(nama), new ActionRowBuilder().addComponents(item));
         await interaction.showModal(modal);
@@ -95,12 +117,22 @@ client.on('interactionCreate', async (interaction) => {
                 permissionOverwrites: [
                     { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
                     { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.AttachFiles] },
+                    // Memberikan akses baca untuk admin roles agar bisa melihat tiket
+                    ...ALLOWED_ADMIN_ROLES.map(roleId => ({
+                        id: roleId,
+                        allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
+                    }))
                 ],
             });
 
             const embedInfo = new EmbedBuilder()
                 .setTitle(`Detail Tiket #${randomID}`)
-                .addFields({ name: '👤 User', value: `${interaction.user}`, inline: true }, { name: '🆔 UCP', value: valUcp, inline: true }, { name: '🎮 Karakter', value: valNama, inline: true }, { name: '📦 Item', value: valItem })
+                .addFields(
+                    { name: '👤 User', value: `${interaction.user}`, inline: true }, 
+                    { name: '🆔 UCP', value: valUcp, inline: true }, 
+                    { name: '🎮 Karakter', value: valNama, inline: true }, 
+                    { name: '📦 Item', value: valItem }
+                )
                 .setColor('#2ecc71').setTimestamp();
 
             const row = new ActionRowBuilder().addComponents(
@@ -108,7 +140,7 @@ client.on('interactionCreate', async (interaction) => {
                 new ButtonBuilder().setCustomId('tutup_tiket').setLabel('Tutup Tiket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
             );
 
-            await ticketChannel.send({ embeds: [embedInfo], components: [row] });
+            await ticketChannel.send({ content: `Halo ${interaction.user}, Admin <@&${ALLOWED_ADMIN_ROLES[2]}> akan segera melayani Anda.`, embeds: [embedInfo], components: [row] });
             await interaction.reply({ content: `✅ Tiket Anda berhasil dibuat: ${ticketChannel}`, ephemeral: true });
         } catch (error) {
             console.error(error);
@@ -118,7 +150,6 @@ client.on('interactionCreate', async (interaction) => {
 
     // --- 3. LOGIKA DONE / SELESAI (KHUSUS ADMIN) ---
     if (interaction.isButton() && interaction.customId === 'done_tiket') {
-        // Cek apakah user punya salah satu role admin
         const isAdmin = interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
 
         if (!isAdmin) {
