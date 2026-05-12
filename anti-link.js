@@ -23,13 +23,7 @@ const CONFIG = {
     GUILD_ID: '1392382455876550796',
 };
 
-const ADMIN_ROLE_IDS = [
-    '1392382455981412398',
-    '1392382455981412393',
-    '1392382455981412397',
-    '1392382455947989066'
-];
-
+const ADMIN_ROLE_IDS = ['1392382455981412398', '1392382455981412393', '1392382455981412397', '1392382455947989066'];
 const BAD_LINKS = ["free-nitro", "discord-gift", "steam-promo", "bit.ly/badlink", "https://discord.gg", "https://discord.com", "discord.gg", "cherry-girls"];
 
 client.on('messageCreate', async (message) => {
@@ -38,118 +32,101 @@ client.on('messageCreate', async (message) => {
     const isAdmin = message.member.roles.cache.some(role => ADMIN_ROLE_IDS.includes(role.id));
     if (isAdmin) return;
 
-    const content = message.content;
+    const content = message.content; 
     const lowerContent = content.toLowerCase();
     const hasBadLink = BAD_LINKS.some(link => lowerContent.includes(link));
 
     if (hasBadLink) {
         try {
-            // 1. Hapus pesan asli segera demi keamanan
             await message.delete();
 
-            // 2. Kirim pesan pemicu (Dilihat semua orang agar user tahu kenapa pesannya hilang)
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId(`trigger_${message.author.id}`)
-                        .setLabel('Verifikasi Pesan Saya')
-                        .setStyle(ButtonStyle.Primary)
-                );
+            // Pesan pemicu publik agar user bisa memicu pesan ephemeral
+            const triggerRow = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`verify_${message.author.id}`)
+                    .setLabel('Konfirmasi Pesan Anda')
+                    .setStyle(ButtonStyle.Primary)
+            );
 
             const triggerMsg = await message.channel.send({
-                content: `⚠️ ${message.author}, pesan Anda mengandung link terlarang. Klik tombol di bawah untuk verifikasi manusia.`,
-                components: [row]
+                content: `⚠️ ${message.author}, pesan Anda ditahan. Klik tombol di bawah untuk verifikasi.`,
+                components: [triggerRow]
             });
 
             const collector = triggerMsg.createMessageComponentCollector({
                 componentType: ComponentType.Button,
-                time: 30000 // 30 detik untuk klik tombol pertama
+                time: 30000 
             });
 
-            let isVerified = false;
+            let isActioned = false;
 
             collector.on('collect', async (interaction) => {
                 if (interaction.user.id !== message.author.id) {
                     return interaction.reply({ content: 'Tombol ini bukan untuk Anda!', ephemeral: true });
                 }
 
-                // 3. Tampilkan Pesan Rahasia (Hanya user tersebut yang bisa lihat)
-                const confirmRow = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('confirm_yes')
-                            .setLabel('Ya, Kirim Pesan')
-                            .setStyle(ButtonStyle.Success),
-                        new ButtonBuilder()
-                            .setCustomId('confirm_no')
-                            .setLabel('Bukan/Batalkan')
-                            .setStyle(ButtonStyle.Danger)
-                    );
+                // Munculkan konfirmasi rahasia (Ephemeral)
+                const confirmRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder().setCustomId('yes_send').setLabel('Ya, Kirim').setStyle(ButtonStyle.Success),
+                    new ButtonBuilder().setCustomId('no_timeout').setLabel('Tidak/Hukum Saya').setStyle(ButtonStyle.Danger)
+                );
 
                 await interaction.reply({
-                    content: 'Apakah Anda yakin pesan ini aman? Jika Anda berbohong, Anda akan di-timeout.',
+                    content: 'Apakah Anda yakin ingin mengirim pesan tersebut secara publik?',
                     components: [confirmRow],
                     ephemeral: true
                 });
 
-                // Kolektor kedua khusus untuk pesan rahasia (waktu singkat: 15 detik)
-                const internalCollector = interaction.channel.createMessageComponentCollector({
+                const subCollector = interaction.channel.createMessageComponentCollector({
                     filter: i => i.user.id === message.author.id,
                     time: 15000
                 });
 
-                internalCollector.on('collect', async (i2) => {
-                    if (i2.customId === 'confirm_yes') {
-                        isVerified = true;
-                        // Kirim ulang pesan asli tanpa teks tambahan
+                subCollector.on('collect', async (i2) => {
+                    if (i2.customId === 'yes_send') {
+                        isActioned = true;
                         await interaction.channel.send({ content: content });
-                        await i2.reply({ content: 'Pesan berhasil dikirim ulang.', ephemeral: true });
+                        await i2.reply({ content: 'Pesan terkirim!', ephemeral: true });
                         await triggerMsg.delete().catch(() => {});
                         collector.stop();
                     } else {
-                        // User klik "No"
+                        isActioned = true; // Set true agar end collector tidak trigger timeout ganda
                         await applyAutoTimeout(message.member, triggerMsg);
                         collector.stop();
                     }
+                    subCollector.stop();
                 });
             });
 
             collector.on('end', async () => {
-                // Jika waktu habis dan tidak terverifikasi (Bot spam biasanya abaikan tombol)
-                if (!isVerified) {
+                if (!isActioned) {
                     await applyAutoTimeout(message.member, triggerMsg);
                 }
             });
 
         } catch (error) {
-            console.error('Error Anti-Link:', error);
+            console.error('Error:', error);
         }
     }
 });
 
-// Fungsi untuk menerapkan timeout dan memunculkan Embed peringatan publik
-async function applyAutoTimeout(member, triggerMsg) {
+async function applyAutoTimeout(member, botMessage) {
     try {
-        const duration = 30 * 60 * 1000; // 30 Menit
-        await member.timeout(duration, 'Auto-mod: Gagal verifikasi link mencurigakan');
+        const duration = 30 * 60 * 1000;
+        await member.timeout(duration, 'Auto-mod: Link Mencurigakan');
 
-        const warningEmbed = new EmbedBuilder()
+        const timeoutEmbed = new EmbedBuilder()
             .setColor('#FF0000')
             .setDescription(`⚠️ ${member.user.tag} otomatis di-timeout karena mengirim link mencurigakan.`);
 
-        await triggerMsg.edit({ 
-            content: null, 
-            embeds: [warningEmbed], 
-            components: [] 
-        });
-
-        // Pesan timeout hilang setelah 15 detik agar chat tetap bersih
-        setTimeout(() => triggerMsg.delete().catch(() => {}), 15000);
+        await botMessage.edit({ content: null, embeds: [timeoutEmbed], components: [] });
+        
+        // Hilang setelah 10 detik sesuai permintaan
+        setTimeout(() => botMessage.delete().catch(() => {}), 10000);
     } catch (err) {
         console.error('Gagal Timeout:', err);
-        await triggerMsg.delete().catch(() => {});
+        await botMessage.delete().catch(() => {});
     }
 }
 
-client.once('ready', () => console.log(`Bot Guard aktif: ${client.user.tag}`));
 client.login(CONFIG.TOKEN);
