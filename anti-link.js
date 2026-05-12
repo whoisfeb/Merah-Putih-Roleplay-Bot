@@ -5,7 +5,8 @@ const {
     ActionRowBuilder, 
     ButtonBuilder, 
     ButtonStyle, 
-    ComponentType 
+    ComponentType,
+    MessageFlags // Tambahkan ini untuk v14/v15
 } = require('discord.js');
 
 const client = new Client({
@@ -26,6 +27,9 @@ const CONFIG = {
 const ADMIN_ROLE_IDS = ['1392382455981412398', '1392382455981412393', '1392382455981412397', '1392382455947989066'];
 const BAD_LINKS = ["free-nitro", "discord-gift", "steam-promo", "bit.ly/badlink", "https://discord.gg", "https://discord.com", "discord.gg", "cherry-girls"];
 
+// Gunakan 'clientReady' jika Anda menggunakan versi terbaru untuk menghindari warning
+client.once('ready', () => console.log(`Bot Guard Online: ${client.user.tag}`));
+
 client.on('messageCreate', async (message) => {
     if (message.author.bot || !message.guild) return;
 
@@ -38,24 +42,24 @@ client.on('messageCreate', async (message) => {
 
     if (hasBadLink) {
         try {
-            await message.delete();
+            await message.delete().catch(() => {});
 
             const row = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
                         .setCustomId('confirm_human')
-                        .setLabel('Ya, kirim pesan saya')
+                        .setLabel('Ya, Kirim Pesan Saya')
                         .setStyle(ButtonStyle.Success),
                     new ButtonBuilder()
                         .setCustomId('confirm_bot')
-                        .setLabel('Bukan')
+                        .setLabel('Bukan/Hukum Saya')
                         .setStyle(ButtonStyle.Danger)
                 );
 
             const askEmbed = new EmbedBuilder()
                 .setColor('#FFFF00')
                 .setTitle('🛡️ Deteksi Link')
-                .setDescription(`${message.author}, pesan Anda mengandung link. Klik tombol di bawah jika ingin tetap mengirimnya atau pesan akan otomatis di-timeout dalam 30 detik.`);
+                .setDescription(`${message.author}, pesan Anda mengandung link. Klik tombol di bawah atau Anda akan di-timeout dalam 30 detik.`);
 
             const sentMessage = await message.channel.send({
                 content: `${message.author}`,
@@ -72,57 +76,69 @@ client.on('messageCreate', async (message) => {
 
             collector.on('collect', async (interaction) => {
                 if (interaction.user.id !== message.author.id) {
-                    return interaction.reply({ content: 'Tombol ini bukan untuk Anda!', ephemeral: true });
+                    return interaction.reply({ 
+                        content: 'Tombol ini bukan untuk Anda!', 
+                        flags: [MessageFlags.Ephemeral] 
+                    });
                 }
 
                 isActioned = true;
+                collector.stop();
 
                 if (interaction.customId === 'confirm_human') {
-                    await interaction.channel.send({ content: content });
-                    await interaction.reply({ content: 'Pesan terkirim.', ephemeral: true });
+                    // 1. Balas interaksi SEGERA agar tidak "Unknown Interaction"
+                    await interaction.reply({ 
+                        content: 'Pesan sedang dikirim ulang...', 
+                        flags: [MessageFlags.Ephemeral] 
+                    }).catch(() => {});
+                    
+                    // 2. Kirim pesan asli
+                    await interaction.channel.send({ content: content }).catch(() => {});
+                    
+                    // 3. Hapus tombol konfirmasi
                     await sentMessage.delete().catch(() => {});
-                    collector.stop();
                 } else {
-                    // Jika klik tombol Merah (Bukan/Hukum Saya)
-                    await interaction.deferUpdate();
+                    // Klik tombol merah
                     await applyAutoTimeout(message.member, sentMessage);
-                    collector.stop();
                 }
             });
 
-            collector.on('end', async () => {
-                // Jika waktu habis (abaikan)
-                if (!isActioned) {
+            collector.on('end', async (collected, reason) => {
+                if (!isActioned && reason === 'time') {
                     await applyAutoTimeout(message.member, sentMessage);
                 }
             });
 
         } catch (error) {
-            console.error('Error:', error);
+            console.error('[ERROR]', error);
         }
     }
 });
 
 async function applyAutoTimeout(member, botMessage) {
     try {
-        const duration = 30 * 60 * 1000; // 30 Menit
-        await member.timeout(duration, 'Auto-mod: Link Mencurigakan');
+        const duration = 30 * 60 * 1000;
+        await member.timeout(duration, 'Auto-mod: Link Mencurigakan').catch(() => {});
 
-        // Update menjadi Embed Merah sesuai permintaan
         const timeoutEmbed = new EmbedBuilder()
             .setColor('#FF0000')
             .setDescription(`⚠️ ${member.user.tag} otomatis di-timeout karena mengirim link mencurigakan.`);
 
-        await botMessage.edit({ content: null, embeds: [timeoutEmbed], components: [] });
+        // Hapus tombol (components: []) agar tidak bisa diklik lagi saat proses timeout
+        await botMessage.edit({ 
+            content: null, 
+            embeds: [timeoutEmbed], 
+            components: [] 
+        }).catch(() => {});
         
-        // Hilang setelah 10 detik
-        setTimeout(() => botMessage.delete().catch(() => {}), 10000);
+        setTimeout(() => {
+            botMessage.delete().catch(() => {});
+        }, 10000);
+
     } catch (err) {
-        console.error('Gagal Timeout:', err);
-        // Jika gagal (misal role bot kalah tinggi), pesan tetap dihapus agar bersih
-        await botMessage.delete().catch(() => {});
+        console.error('[TIMEOUT ERROR]', err);
+        botMessage.delete().catch(() => {});
     }
 }
 
-client.once('ready', () => console.log(`Bot Online: ${client.user.tag}`));
 client.login(CONFIG.TOKEN);
