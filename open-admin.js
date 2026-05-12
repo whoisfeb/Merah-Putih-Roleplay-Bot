@@ -109,17 +109,20 @@ client.on(Events.InteractionCreate, async interaction => {
         const riwayatAdmin = interaction.fields.getTextInputValue('riwayat_admin');
 
         const logEmbed = new EmbedBuilder()
-            .setColor(0xff0000)
-            .setTitle('📥 Lamaran Admin Baru')
-            .addFields(
-                { name: '👤 Nama', value: nama, inline: true },
-                { name: '🎂 Umur', value: umur, inline: true },
-                { name: '💼 Kesibukan', value: kesibukan, inline: true },
-                { name: '🛡️ Admin di Server Lain?', value: adminSekarang },
-                { name: '📜 Pernah Jadi Admin?', value: riwayatAdmin },
-                { name: '🆔 User', value: `<@${interaction.user.id}>` }
-            )
-            .setTimestamp();
+        .setColor(0xff0000)
+        .setTitle('📥 LAMARAN ADMIN BARU - MERAH PUTIH RP')
+        .setThumbnail(interaction.user.displayAvatarURL())
+        .addFields(
+            { name: '👤 NAMA', value: `\`\`\`${nama}\`\`\``, inline: false },
+            { name: '🎂 UMUR', value: `\`\`\`${umur}\`\`\``, inline: false },
+            { name: '💼 KESIBUKAN', value: `\`\`\`${kesibukan}\`\`\``, inline: false },
+            { name: '🛡️ ADMIN DI SERVER LAIN?', value: `\`\`\`${adminSekarang}\`\`\``, inline: false },
+            { name: '📜 PERNAH JADI ADMIN?', value: `\`\`\`${riwayatAdmin}\`\`\``, inline: false },
+            { name: '🆔 DISCORD USER', value: `<@${interaction.user.id}> (${interaction.user.tag})`, inline: false }
+        )
+        .setTimestamp()
+        .setFooter({ text: 'Reqruitment staff Merah Putih Roleplay' });
+
 
         const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
         if (logChannel) {
