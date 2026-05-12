@@ -82,7 +82,7 @@ client.on(Events.InteractionCreate, async interaction => {
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('admin_sekarang')
-                    .setLabel("ADMIN DI SERVER LAIN? (JIKA IYA, MANA?)")
+                    .setLabel("APAKAH ANDA ADMIN DI SERVER LAIN? (JIKA IYA, DIMANA?)")
                     .setStyle(TextInputStyle.Paragraph)
                     .setPlaceholder("Tulis 'Tidak ada' jika tidak ada.")
                     .setRequired(true)
@@ -90,7 +90,7 @@ client.on(Events.InteractionCreate, async interaction => {
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('riwayat_admin')
-                    .setLabel("PERNAH JADI ADMIN? (JIKA IYA, MANA?)")
+                    .setLabel("APAKAH ANDA PERNAH MENJADI ADMIN? (JIKA IYA, DIMANA?)")
                     .setStyle(TextInputStyle.Paragraph)
                     .setPlaceholder("Sebutkan riwayat pengalaman admin Anda.")
                     .setRequired(true)
