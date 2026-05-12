@@ -19,16 +19,11 @@ const TOKEN = process.env.DISCORD_TOKEN;
 const LOG_CHANNEL_ID = '1503717359859269783';
 const SERVER_ID = '1392382455876550796'; // Masukkan ID server agar slash command cepat muncul
 
-client.once('ready', async () => {
-    console.log(`✅ Bot Merah Putih RP Siap!`);
-    const guild = client.guilds.cache.get(SERVER_ID);
-    if (guild) {
-        await guild.commands.create({
-            name: 'open-admin',
-            description: 'Memunculkan tombol pendaftaran admin',
-        });
-    }
+client.once(Events.ClientReady, async () => {
+    console.log(`✅ Modul Open Admin Aktif & Siap!`);
+    // guild.commands.create dihapus dari sini karena sudah didaftarkan di index.js
 });
+
 
 client.on(Events.InteractionCreate, async interaction => {
     
