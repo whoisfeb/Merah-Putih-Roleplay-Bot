@@ -40,20 +40,30 @@ client.on('messageCreate', async (message) => {
         try {
             await message.delete();
 
-            // Pesan pemicu publik agar user bisa memicu pesan ephemeral
-            const triggerRow = new ActionRowBuilder().addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`verify_${message.author.id}`)
-                    .setLabel('Konfirmasi Pesan Anda')
-                    .setStyle(ButtonStyle.Primary)
-            );
+            const row = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('confirm_human')
+                        .setLabel('Ya, kirim pesan saya')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId('confirm_bot')
+                        .setLabel('Bukan')
+                        .setStyle(ButtonStyle.Danger)
+                );
 
-            const triggerMsg = await message.channel.send({
-                content: `⚠️ ${message.author}, pesan Anda ditahan. Klik tombol di bawah untuk verifikasi.`,
-                components: [triggerRow]
+            const askEmbed = new EmbedBuilder()
+                .setColor('#FFFF00')
+                .setTitle('🛡️ Deteksi Link')
+                .setDescription(`${message.author}, pesan Anda mengandung link. Klik tombol di bawah jika ingin tetap mengirimnya atau pesan akan otomatis di-timeout dalam 30 detik.`);
+
+            const sentMessage = await message.channel.send({
+                content: `${message.author}`,
+                embeds: [askEmbed],
+                components: [row]
             });
 
-            const collector = triggerMsg.createMessageComponentCollector({
+            const collector = sentMessage.createMessageComponentCollector({
                 componentType: ComponentType.Button,
                 time: 30000 
             });
@@ -65,42 +75,25 @@ client.on('messageCreate', async (message) => {
                     return interaction.reply({ content: 'Tombol ini bukan untuk Anda!', ephemeral: true });
                 }
 
-                // Munculkan konfirmasi rahasia (Ephemeral)
-                const confirmRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder().setCustomId('yes_send').setLabel('Ya, Kirim').setStyle(ButtonStyle.Success),
-                    new ButtonBuilder().setCustomId('no_timeout').setLabel('Tidak/Hukum Saya').setStyle(ButtonStyle.Danger)
-                );
+                isActioned = true;
 
-                await interaction.reply({
-                    content: 'Apakah Anda yakin ingin mengirim pesan tersebut secara publik?',
-                    components: [confirmRow],
-                    ephemeral: true
-                });
-
-                const subCollector = interaction.channel.createMessageComponentCollector({
-                    filter: i => i.user.id === message.author.id,
-                    time: 15000
-                });
-
-                subCollector.on('collect', async (i2) => {
-                    if (i2.customId === 'yes_send') {
-                        isActioned = true;
-                        await interaction.channel.send({ content: content });
-                        await i2.reply({ content: 'Pesan terkirim!', ephemeral: true });
-                        await triggerMsg.delete().catch(() => {});
-                        collector.stop();
-                    } else {
-                        isActioned = true; // Set true agar end collector tidak trigger timeout ganda
-                        await applyAutoTimeout(message.member, triggerMsg);
-                        collector.stop();
-                    }
-                    subCollector.stop();
-                });
+                if (interaction.customId === 'confirm_human') {
+                    await interaction.channel.send({ content: content });
+                    await interaction.reply({ content: 'Pesan terkirim.', ephemeral: true });
+                    await sentMessage.delete().catch(() => {});
+                    collector.stop();
+                } else {
+                    // Jika klik tombol Merah (Bukan/Hukum Saya)
+                    await interaction.deferUpdate();
+                    await applyAutoTimeout(message.member, sentMessage);
+                    collector.stop();
+                }
             });
 
             collector.on('end', async () => {
+                // Jika waktu habis (abaikan)
                 if (!isActioned) {
-                    await applyAutoTimeout(message.member, triggerMsg);
+                    await applyAutoTimeout(message.member, sentMessage);
                 }
             });
 
@@ -112,21 +105,24 @@ client.on('messageCreate', async (message) => {
 
 async function applyAutoTimeout(member, botMessage) {
     try {
-        const duration = 30 * 60 * 1000;
+        const duration = 30 * 60 * 1000; // 30 Menit
         await member.timeout(duration, 'Auto-mod: Link Mencurigakan');
 
+        // Update menjadi Embed Merah sesuai permintaan
         const timeoutEmbed = new EmbedBuilder()
             .setColor('#FF0000')
             .setDescription(`⚠️ ${member.user.tag} otomatis di-timeout karena mengirim link mencurigakan.`);
 
         await botMessage.edit({ content: null, embeds: [timeoutEmbed], components: [] });
         
-        // Hilang setelah 10 detik sesuai permintaan
+        // Hilang setelah 10 detik
         setTimeout(() => botMessage.delete().catch(() => {}), 10000);
     } catch (err) {
         console.error('Gagal Timeout:', err);
+        // Jika gagal (misal role bot kalah tinggi), pesan tetap dihapus agar bersih
         await botMessage.delete().catch(() => {});
     }
 }
 
+client.once('ready', () => console.log(`Bot Online: ${client.user.tag}`));
 client.login(CONFIG.TOKEN);
