@@ -16,8 +16,8 @@ client.once('ready', () => {
 client.on('messageCreate', async (message) => {
     if (message.content === '!setup-unban') {
         const embed = new EmbedBuilder()
-            .setTitle('Permohonan Unban')
-            .setDescription('Klik tombol di bawah untuk mengisi formulir unban.')
+            .setTitle('🎫 Sistem Banding Unban')
+            .setDescription('Klik tombol di bawah untuk mengisi formulir permohonan unban.')
             .setColor(0x2F3136);
 
         const row = new ActionRowBuilder().addComponents(
@@ -33,31 +33,27 @@ client.on('messageCreate', async (message) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
-    // 1. JIKA TOMBOL BUKA TIKET DIKLIK (MUNCULKAN MODAL)
+    // 1. MUNCULKAN MODAL
     if (interaction.isButton() && interaction.customId === 'open_unban_form') {
         const modal = new ModalBuilder()
             .setCustomId('unban_form_modal')
             .setTitle('Formulir Request Unbanned');
 
-        const ucp = new TextInputBuilder().setCustomId('ucp').setLabel("UCP").setStyle(TextInputStyle.Short).setRequired(true);
-        const charName = new TextInputBuilder().setCustomId('char_name').setLabel("Nama Karakter").setStyle(TextInputStyle.Short).setRequired(true);
-        const reason = new TextInputBuilder().setCustomId('reason').setLabel("Reason/Alasan Banned").setStyle(TextInputStyle.Paragraph).setRequired(true);
-        const duration = new TextInputBuilder().setCustomId('duration').setLabel("Banned Duration / Time").setPlaceholder("Contoh: 7 Hari / Permanent").setStyle(TextInputStyle.Short).setRequired(true);
-        const bannedBy = new TextInputBuilder().setCustomId('banned_by').setLabel("Banned By").setStyle(TextInputStyle.Short).setRequired(true);
-
         modal.addComponents(
-            new ActionRowBuilder().addComponents(ucp),
-            new ActionRowBuilder().addComponents(charName),
-            new ActionRowBuilder().addComponents(reason),
-            new ActionRowBuilder().addComponents(duration),
-            new ActionRowBuilder().addComponents(bannedBy)
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('ucp').setLabel("UCP").setStyle(TextInputStyle.Short).setRequired(true)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('char_name').setLabel("Nama Karakter").setStyle(TextInputStyle.Short).setRequired(true)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('reason').setLabel("Reason/Alasan Banned").setStyle(TextInputStyle.Paragraph).setRequired(true)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('duration').setLabel("Banned Duration / Time").setStyle(TextInputStyle.Short).setRequired(true)),
+            new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('banned_by').setLabel("Banned By Admin").setStyle(TextInputStyle.Short).setRequired(true))
         );
 
         await interaction.showModal(modal);
     }
 
-    // 2. TANGKAP HASIL MODAL & BUAT CHANNEL
+    // 2. PROSES TIKET SETELAH SUBMIT MODAL
     if (interaction.isModalSubmit() && interaction.customId === 'unban_form_modal') {
+        await interaction.deferReply({ ephemeral: true });
+
         const data = {
             ucp: interaction.fields.getTextInputValue('ucp'),
             char: interaction.fields.getTextInputValue('char_name'),
@@ -66,46 +62,53 @@ client.on('interactionCreate', async (interaction) => {
             admin: interaction.fields.getTextInputValue('banned_by')
         };
 
-        const channelName = `unban-${data.ucp}`;
+        // Membuat ID acak 4 digit agar nama channel unik
+        const randomID = Math.floor(1000 + Math.random() * 9000);
+        const channelName = `unban-${data.ucp}-${randomID}`;
         
-        await interaction.deferReply({ ephemeral: true });
-
         const ticketChannel = await interaction.guild.channels.create({
             name: channelName,
             type: ChannelType.GuildText,
             parent: CATEGORY_ID,
             permissionOverwrites: [
                 { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-                { id: ADMIN_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
+                { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                { id: ADMIN_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
             ],
         });
 
+        // Embed rapi berurutan ke bawah menggunakan Description
         const resultEmbed = new EmbedBuilder()
-            .setTitle('🎫 Tiket Unban Baru')
+            .setTitle(`🎫 Tiket Unban: ${channelName.toUpperCase()}`)
             .setColor(0xFFFF00)
-            .addFields(
-                { name: '👤 User', value: `${interaction.user} (${interaction.user.id})`, inline: true },
-                { name: '🖥️ UCP', value: data.ucp, inline: true },
-                { name: '🎭 Nama Karakter', value: data.char, inline: true },
-                { name: '⏳ Durasi Banned', value: data.time, inline: true },
-                { name: '👮 Banned By Admin', value: data.admin, inline: true },
-                { name: '📝 Alasan Banned', value: data.reason }
+            .setDescription(
+                `👤 **User**\n${interaction.user} (${interaction.user.id})\n\n` +
+                `🖥️ **UCP**\n${data.ucp}\n\n` +
+                `🎭 **Nama Karakter**\n${data.char}\n\n` +
+                `⏳ **Durasi Banned**\n${data.time}\n\n` +
+                `👮 **Banned By Admin**\n${data.admin}\n\n` +
+                `📝 **Alasan Banned**\n${data.reason}`
             )
-            .setTimestamp();
+            .setTimestamp()
+            .setFooter({ text: 'Sistem Tiket Unban', iconURL: interaction.guild.iconURL() });
 
         const row = new ActionRowBuilder().addComponents(
             new ButtonBuilder().setCustomId('close_ticket').setLabel('Tutup Tiket').setStyle(ButtonStyle.Danger)
         );
 
-        await ticketChannel.send({ content: `<@&${ADMIN_ROLE_ID}>`, embeds: [resultEmbed], components: [row] });
-        await interaction.editReply({ content: `Tiket berhasil dibuat di ${ticketChannel}` });
+        await ticketChannel.send({ content: `Halo ${interaction.user} & <@&${ADMIN_ROLE_ID}>`, embeds: [resultEmbed], components: [row] });
+        await interaction.editReply({ content: `Tiket berhasil dibuat: ${ticketChannel}` });
     }
 
-    // 3. TUTUP TIKET
+    // 3. TUTUP TIKET (HANYA UNTUK ADMIN)
     if (interaction.isButton() && interaction.customId === 'close_ticket') {
-        await interaction.reply('Tiket ini akan dihapus dalam 5 detik...');
-        setTimeout(() => interaction.channel.delete(), 5000);
+        // Cek apakah pengklik memiliki role admin
+        if (!interaction.member.roles.cache.has(ADMIN_ROLE_ID)) {
+            return interaction.reply({ content: '❌ Hanya Admin yang boleh menutup tiket ini!', ephemeral: true });
+        }
+
+        await interaction.reply('**Tiket ini akan ditutup dan dihapus dalam 5 detik...**');
+        setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
     }
 });
 
