@@ -32,20 +32,19 @@ client.on('messageCreate', async (message) => {
     const isAdmin = message.member.roles.cache.some(role => ADMIN_ROLE_IDS.includes(role.id));
     if (isAdmin) return;
 
-    const content = message.content; // Simpan konten asli
+    const content = message.content; 
     const lowerContent = content.toLowerCase();
     const hasBadLink = BAD_LINKS.some(link => lowerContent.includes(link));
 
     if (hasBadLink) {
         try {
-            // 1. HAPUS PESAN ASLI SEGERA (Demi Keamanan)
             await message.delete();
 
             const row = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
                         .setCustomId('confirm_human')
-                        .setLabel('Ya, Ini Saya (Kirim Pesan)')
+                        .setLabel('Ya, Kirim Pesan Saya')
                         .setStyle(ButtonStyle.Success),
                     new ButtonBuilder()
                         .setCustomId('confirm_bot')
@@ -55,8 +54,8 @@ client.on('messageCreate', async (message) => {
 
             const askEmbed = new EmbedBuilder()
                 .setColor('#FFFF00')
-                .setTitle('🛡️ Deteksi Link Berbahaya')
-                .setDescription(`${message.author}, pesan Anda mengandung link yang masuk dalam daftar pantauan.\n\nKlik **Ya** jika Anda benar-benar ingin mengirimnya, atau abaikan jika ini adalah bot spam.`);
+                .setTitle('🛡️ Deteksi Link')
+                .setDescription(`${message.author}, pesan Anda terdeteksi mengandung link. Klik tombol di bawah jika Anda ingin tetap mengirimnya.`);
 
             const sentMessage = await message.channel.send({
                 content: `${message.author}`,
@@ -79,17 +78,13 @@ client.on('messageCreate', async (message) => {
                 isActioned = true;
 
                 if (interaction.customId === 'confirm_human') {
-                    // 2. JIKA KLIK YES: KIRIM ULANG PESANNYA
-                    await interaction.reply({ content: 'Pesan telah dikirim kembali.', ephemeral: true });
+                    // Mengirim ulang pesan original saja
+                    await interaction.channel.send({ content: content });
                     
-                    await interaction.channel.send({ 
-                        content: `✅ **Pesan Terverifikasi dari ${message.author}:**\n${content}` 
-                    });
-
+                    await interaction.reply({ content: 'Pesan terkirim.', ephemeral: true });
                     await sentMessage.delete().catch(() => {});
                     collector.stop();
                 } else {
-                    // JIKA KLIK NO
                     await interaction.deferUpdate();
                     await applyAutoTimeout(message.member, sentMessage);
                     collector.stop();
@@ -118,11 +113,11 @@ async function applyAutoTimeout(member, botMessage) {
             .setDescription(`🚫 **${member.user.tag}** di-timeout otomatis karena terdeteksi sebagai spam.`);
 
         await botMessage.edit({ embeds: [timeoutEmbed], components: [] });
-        setTimeout(() => botMessage.delete().catch(() => {}), 10000);
+        setTimeout(() => botMessage.delete().catch(() => {}), 5000);
     } catch (err) {
         console.error('Gagal Timeout:', err);
     }
 }
 
-client.once('ready', () => console.log(`Bot aktif: ${client.user.tag}`));
+client.once('ready', () => console.log(`Bot online: ${client.user.tag}`));
 client.login(CONFIG.TOKEN);
