@@ -157,12 +157,18 @@ const RANDOM_MESSAGES = [
 ];
 
 // --- REGISTER SLASH COMMANDS ---
+// Di file index.js Anda
 const commands = [
     {
         name: 'payment',
         description: 'Menampilkan informasi metode pembayaran resmi store',
     },
+    {
+        name: 'open-admin', // TAMBAHKAN INI
+        description: 'Memunculkan tombol pendaftaran admin',
+    },
 ];
+
 
 const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
 
