@@ -1,0 +1,134 @@
+const { 
+    Client, 
+    GatewayIntentBits, 
+    ActionRowBuilder, 
+    ModalBuilder, 
+    TextInputBuilder, 
+    TextInputStyle, 
+    EmbedBuilder, 
+    Events, 
+    ButtonBuilder, 
+    ButtonStyle 
+} = require('discord.js');
+
+const client = new Client({
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages]
+});
+
+const TOKEN = process.env.DISCORD_TOKEN;
+const LOG_CHANNEL_ID = '1503717359859269783';
+const SERVER_ID = '1392382455876550796'; // Masukkan ID server agar slash command cepat muncul
+
+client.once('ready', async () => {
+    console.log(`✅ Bot Merah Putih RP Siap!`);
+    const guild = client.guilds.cache.get(SERVER_ID);
+    if (guild) {
+        await guild.commands.create({
+            name: 'open-admin',
+            description: 'Memunculkan tombol pendaftaran admin',
+        });
+    }
+});
+
+client.on(Events.InteractionCreate, async interaction => {
+    
+    // Command untuk memunculkan tombol pendaftaran
+    if (interaction.isChatInputCommand() && interaction.commandName === 'open-admin') {
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('btn_apply_admin')
+                    .setLabel('Daftar Jadi Admin')
+                    .setEmoji('📝')
+                    .setStyle(ButtonStyle.Danger),
+            );
+
+        const embed = new EmbedBuilder()
+            .setTitle('🇮🇩 Rekrutmen Admin Merah Putih RP')
+            .setDescription('Silahkan klik tombol di bawah untuk mengisi formulir pendaftaran.')
+            .setColor(0xff0000);
+
+        await interaction.reply({ embeds: [embed], components: [row] });
+    }
+
+    // Munculkan formulir saat tombol diklik
+    if (interaction.isButton() && interaction.customId === 'btn_apply_admin') {
+        const modal = new ModalBuilder()
+            .setCustomId('modal_apply')
+            .setTitle('Formulir Admin Merah Putih RP');
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('nama')
+                    .setLabel("NAMA")
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('umur')
+                    .setLabel("UMUR")
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('kesibukan')
+                    .setLabel("KESIBUKAN")
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('admin_sekarang')
+                    .setLabel("ADMIN DI SERVER LAIN? (JIKA IYA, MANA?)")
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder("Tulis 'Tidak ada' jika tidak ada.")
+                    .setRequired(true)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('riwayat_admin')
+                    .setLabel("PERNAH JADI ADMIN? (JIKA IYA, MANA?)")
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder("Sebutkan riwayat pengalaman admin Anda.")
+                    .setRequired(true)
+            )
+        );
+
+        await interaction.showModal(modal);
+    }
+
+    // Proses data saat formulir dikirim
+    if (interaction.isModalSubmit() && interaction.customId === 'modal_apply') {
+        const nama = interaction.fields.getTextInputValue('nama');
+        const umur = interaction.fields.getTextInputValue('umur');
+        const kesibukan = interaction.fields.getTextInputValue('kesibukan');
+        const adminSekarang = interaction.fields.getTextInputValue('admin_sekarang');
+        const riwayatAdmin = interaction.fields.getTextInputValue('riwayat_admin');
+
+        const logEmbed = new EmbedBuilder()
+            .setColor(0xff0000)
+            .setTitle('📥 Lamaran Admin Baru')
+            .addFields(
+                { name: '👤 Nama', value: nama, inline: true },
+                { name: '🎂 Umur', value: umur, inline: true },
+                { name: '💼 Kesibukan', value: kesibukan, inline: true },
+                { name: '🛡️ Admin di Server Lain?', value: adminSekarang },
+                { name: '📜 Pernah Jadi Admin?', value: riwayatAdmin },
+                { name: '🆔 User', value: `<@${interaction.user.id}>` }
+            )
+            .setTimestamp();
+
+        const logChannel = client.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) {
+            logChannel.send({ embeds: [logEmbed] });
+            await interaction.reply({ content: '✅ Formulir berhasil dikirim ke logs admin.', ephemeral: true });
+        } else {
+            await interaction.reply({ content: '❌ Error: Channel logs tidak ditemukan.', ephemeral: true });
+        }
+    }
+});
+
+client.login(TOKEN);
