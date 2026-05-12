@@ -33,7 +33,7 @@ client.on(Events.InteractionCreate, async interaction => {
             .addComponents(
                 new ButtonBuilder()
                     .setCustomId('btn_apply_admin')
-                    .setLabel('Daftar Jadi Admin')
+                    .setLabel('DAFTAR ADMINS')
                     .setEmoji('📝')
                     .setStyle(ButtonStyle.Danger),
             );
@@ -77,7 +77,7 @@ client.on(Events.InteractionCreate, async interaction => {
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('admin_sekarang')
-                    .setLabel("APAKAH ANDA ADMIN DI SERVER LAIN? (JIKA IYA, DIMANA?)")
+                    .setLabel("ADMIN DI SERVER LAIN? (JIKA IYA, DIMANA?)")
                     .setStyle(TextInputStyle.Paragraph)
                     .setPlaceholder("Tulis 'Tidak ada' jika tidak ada.")
                     .setRequired(true)
@@ -85,7 +85,7 @@ client.on(Events.InteractionCreate, async interaction => {
             new ActionRowBuilder().addComponents(
                 new TextInputBuilder()
                     .setCustomId('riwayat_admin')
-                    .setLabel("APAKAH ANDA PERNAH MENJADI ADMIN? (JIKA IYA, DIMANA?)")
+                    .setLabel("PERNAH JADI ADMIN? (JIKA IYA, DIMANA?)")
                     .setStyle(TextInputStyle.Paragraph)
                     .setPlaceholder("Sebutkan riwayat pengalaman admin Anda.")
                     .setRequired(true)
