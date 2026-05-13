@@ -1,32 +1,33 @@
-name: Merah Putih Bot
-
+name: Ottibonynyo Mods
 concurrency:
-  group: merahputih-bot-group
-  cancel-in-progress: true # Mematikan bot lama saat jadwal baru dimulai
-
+  group: ottibonynyo-bot-group
+  cancel-in-progress: true
+  
 on:
   schedule:
-    - cron: '*/30 * * * *' # Memicu ulang bot setiap 30 menit
-  workflow_dispatch: # Mengaktifkan tombol jalankan manual di GitHub
+    # Berjalan setiap 30 menit
+    - cron: '*/30 * * * *'
+  # Memungkinkan Anda menjalankan manual melalui tab "Actions"
+  workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    timeout-minutes: 35 # Memaksa job mati jika cron berikutnya terlambat
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
-          node-version: '20' # Menggunakan versi Node.js yang lebih stabil
+          node-version: '18'
 
       - name: Install Dependencies
         run: npm install
 
-      - name: Run All Bots
-        run: npm start
+      - name: Run Both Bots
+        # GANTI BAGIAN INI: Memanggil npm start agar menjalankan kedua file sekaligus
+        run: npm start 
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
