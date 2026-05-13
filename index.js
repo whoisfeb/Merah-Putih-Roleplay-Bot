@@ -590,19 +590,6 @@ client.on('messageCreate', async (message) => {
         return;
     }
 
-    if (CONFIG.ALLOWED_CHANNELS.includes(message.channel.id)) {
-        const autoResponses = [
-            `Halo <@${message.author.id}>! Ada yang bisa dibantu?`,
-            "Halo! kak kenapa nih apakah anda sedang kesusahan jika sedang kesusahan tunggu saja ya nanti akan di respon oleh <@&1435256476011860171>",
-            "Admin akan segera merespon chat kamu, mohon ditunggu ya.",
-            "Kenapa sayang ih, kamu kangen aku ya, jangan kangen kangen ya mending login aja.",
-            "Kenapa sayang kangen?, ih sini ||login|| ih bareng aku."
-        ];
-
-        if (Math.random() < 0.3) {
-            message.reply(autoResponses[Math.floor(Math.random() * autoResponses.length)]);
-        }
-    }
 });
 
 client.login(CONFIG.TOKEN);
