@@ -1,7 +1,7 @@
 // Mengaktifkan dotenv di baris paling pertama
 require('dotenv').config();
 
-const { Client, GatewayIntentBits, AuditLogEvent, EmbedBuilder, Partials } = require('discord.js');
+const { Client, GatewayIntentBits, AuditLogEvent, EmbedBuilder, Partials, REST, Routes, PermissionFlagsBits } = require('discord.js');
 
 const client = new Client({
     intents: [
@@ -26,12 +26,6 @@ const client = new Client({
 // GANTI ID DI BAWAH INI DENGAN ID CHANNEL LOG SERVER ANDA
 const LOG_CHANNEL_ID = '1392382457751539725'; 
 
-client.once('ready', () => {
-    console.log(`========================================`);
-    console.log(`✅ Bot Super Logs 100% Full Version Online!`);
-    console.log(`Logged in as: ${client.user.tag}`);
-    console.log(`========================================`);
-});
 
 // Helper universal untuk mengirim log ke channel tujuan
 function sendLog(guild, embed) {
@@ -39,6 +33,120 @@ function sendLog(guild, embed) {
     const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
     if (logChannel) logChannel.send({ embeds: [embed] }).catch(err => console.error('Gagal mengirim log:', err));
 }
+
+// ==========================================
+// SLASH COMMAND HANDLERS
+// ==========================================
+
+client.on('interactionCreate', async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+
+    const { commandName } = interaction;
+
+    // COMMAND: /addrole
+    if (commandName === 'addrole') {
+        const user = interaction.options.getUser('user');
+        const role = interaction.options.getRole('role');
+        const member = await interaction.guild.members.fetch(user.id);
+
+        // Cek permission
+        if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+            return interaction.reply({
+                content: '❌ Anda tidak memiliki izin ManageRoles!',
+                ephemeral: true
+            });
+        }
+
+        // Cek apakah member sudah memiliki role
+        if (member.roles.cache.has(role.id)) {
+            return interaction.reply({
+                content: `❌ ${user.tag} sudah memiliki role ${role.name}!`,
+                ephemeral: true
+            });
+        }
+
+        // Cek apakah role lebih tinggi dari bot
+        if (role.position >= interaction.guild.members.me.roles.highest.position) {
+            return interaction.reply({
+                content: `❌ Role ${role.name} lebih tinggi atau sama dengan role bot saya!`,
+                ephemeral: true
+            });
+        }
+
+        try {
+            await member.roles.add(role);
+            
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Role Ditambahkan')
+                .setColor('#2ecc71')
+                .setDescription(`Role berhasil diberikan kepada member`)
+                .addFields(
+                    { name: 'Member', value: `${user} (${user.tag})`, inline: true },
+                    { name: 'Role', value: `${role.name}`, inline: true },
+                    { name: 'Diberikan Oleh', value: `${interaction.user.tag}`, inline: true }
+                )
+                .setTimestamp();
+
+            interaction.reply({ embeds: [embed] });
+            sendLog(interaction.guild, embed);
+
+        } catch (error) {
+            console.error(error);
+            interaction.reply({
+                content: `❌ Terjadi error: ${error.message}`,
+                ephemeral: true
+            });
+        }
+    }
+
+    // COMMAND: /removerole
+    if (commandName === 'removerole') {
+        const user = interaction.options.getUser('user');
+        const role = interaction.options.getRole('role');
+        const member = await interaction.guild.members.fetch(user.id);
+
+        // Cek permission
+        if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+            return interaction.reply({
+                content: '❌ Anda tidak memiliki izin ManageRoles!',
+                ephemeral: true
+            });
+        }
+
+        // Cek apakah member memiliki role
+        if (!member.roles.cache.has(role.id)) {
+            return interaction.reply({
+                content: `❌ ${user.tag} tidak memiliki role ${role.name}!`,
+                ephemeral: true
+            });
+        }
+
+        try {
+            await member.roles.remove(role);
+            
+            const embed = new EmbedBuilder()
+                .setTitle('✅ Role Dihapus')
+                .setColor('#e74c3c')
+                .setDescription(`Role berhasil dihapus dari member`)
+                .addFields(
+                    { name: 'Member', value: `${user} (${user.tag})`, inline: true },
+                    { name: 'Role', value: `${role.name}`, inline: true },
+                    { name: 'Dihapus Oleh', value: `${interaction.user.tag}`, inline: true }
+                )
+                .setTimestamp();
+
+            interaction.reply({ embeds: [embed] });
+            sendLog(interaction.guild, embed);
+
+        } catch (error) {
+            console.error(error);
+            interaction.reply({
+                content: `❌ Terjadi error: ${error.message}`,
+                ephemeral: true
+            });
+        }
+    }
+});
 
 // ==========================================
 // 1. MANAGEMENT MESSAGES (PESAN)
