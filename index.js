@@ -8,14 +8,18 @@ const {
     AttachmentBuilder,
     ActionRowBuilder,
     ButtonBuilder,
-    ButtonStyle
+    ButtonStyle,
+    PermissionFlagsBits,
+    AuditLogEvent
 } = require('discord.js');
 
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildModeration
     ]
 });
 
@@ -103,7 +107,7 @@ const RANDOM_MESSAGES = [
     "Hati ini bukan mobil yang bisa kamu repair seenaknya di mekanik.\n<@&1392382455876550799>",
     "Jangan nanya 'kapan nikah' di IC, nanya 'kapan bagi uang' aja lebih asik.\n<@&1392382455876550799>",
     "Jago nembak di server, tapi gak berani nembak gebetan di RL? Cupu!\n<@&1392382455876550799>",
-    "Hidup itu seperti lag, kadang lancar kadang bikin emosi jiwa.\<@&1392382455876550799>",
+    "Hidup itu seperti lag, kadang lancar kadang bikin emosi jiwa.\n<@&1392382455876550799>",
     "Lari dari kenyataan itu susah, mending lari dari kejaran SAPD kota.\n<@&1392382455876550799>",
     "Merah Putih Roleplay: Tempat di mana saya lebih kaya daripada dunia nyata.\n<@&1392382455876550799>",
     "Setiap orang punya topeng, di Merah Putih Roleplay kita bebas memilih peran kita.\n<@&1392382455876550799>",
@@ -157,18 +161,52 @@ const RANDOM_MESSAGES = [
 ];
 
 // --- REGISTER SLASH COMMANDS ---
-// Di file index.js Anda
 const commands = [
     {
         name: 'payment',
         description: 'Menampilkan informasi metode pembayaran resmi store',
     },
     {
-        name: 'open-admin', // TAMBAHKAN INI
+        name: 'open-admin',
         description: 'Memunculkan tombol pendaftaran admin',
     },
+    {
+        name: 'addrole',
+        description: 'Memberikan role kepada seorang member',
+        options: [
+            {
+                name: 'user',
+                type: 6,
+                description: 'Member yang akan diberi role',
+                required: true,
+            },
+            {
+                name: 'role',
+                type: 9,
+                description: 'Role yang akan diberikan',
+                required: true,
+            },
+        ],
+    },
+    {
+        name: 'removerole',
+        description: 'Menghapus role dari seorang member',
+        options: [
+            {
+                name: 'user',
+                type: 6,
+                description: 'Member yang akan dihapus rolenya',
+                required: true,
+            },
+            {
+                name: 'role',
+                type: 9,
+                description: 'Role yang akan dihapus',
+                required: true,
+            },
+        ],
+    },
 ];
-
 
 const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
 
@@ -183,6 +221,13 @@ async function registerCommands() {
     } catch (error) {
         console.error(error);
     }
+}
+
+// Helper function untuk send log
+function sendLog(guild, embed) {
+    if (!guild) return;
+    const logChannel = guild.channels.cache.get(CONFIG.LOG_CHANNEL);
+    if (logChannel) logChannel.send({ embeds: [embed] }).catch(err => console.error('Gagal mengirim log:', err));
 }
 
 client.once('ready', async () => {
@@ -274,6 +319,110 @@ client.on('interactionCreate', async (interaction) => {
                 components: [row],
                 flags: 64
             });
+        }
+
+        // COMMAND: /addrole
+        if (interaction.commandName === 'addrole') {
+            const user = interaction.options.getUser('user');
+            const role = interaction.options.getRole('role');
+            const member = await interaction.guild.members.fetch(user.id);
+
+            // Cek permission
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+                return interaction.reply({
+                    content: '❌ Anda tidak memiliki izin ManageRoles!',
+                    ephemeral: true
+                });
+            }
+
+            // Cek apakah member sudah memiliki role
+            if (member.roles.cache.has(role.id)) {
+                return interaction.reply({
+                    content: `❌ ${user.tag} sudah memiliki role ${role.name}!`,
+                    ephemeral: true
+                });
+            }
+
+            // Cek apakah role lebih tinggi dari bot
+            if (role.position >= interaction.guild.members.me.roles.highest.position) {
+                return interaction.reply({
+                    content: `❌ Role ${role.name} lebih tinggi atau sama dengan role bot saya!`,
+                    ephemeral: true
+                });
+            }
+
+            try {
+                await member.roles.add(role);
+                
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Role Ditambahkan')
+                    .setColor('#2ecc71')
+                    .setDescription(`Role berhasil diberikan kepada member`)
+                    .addFields(
+                        { name: 'Member', value: `${user} (${user.tag})`, inline: true },
+                        { name: 'Role', value: `${role.name}`, inline: true },
+                        { name: 'Diberikan Oleh', value: `${interaction.user.tag}`, inline: true }
+                    )
+                    .setTimestamp();
+
+                interaction.reply({ embeds: [embed] });
+                sendLog(interaction.guild, embed);
+
+            } catch (error) {
+                console.error(error);
+                interaction.reply({
+                    content: `❌ Terjadi error: ${error.message}`,
+                    ephemeral: true
+                });
+            }
+        }
+
+        // COMMAND: /removerole
+        if (interaction.commandName === 'removerole') {
+            const user = interaction.options.getUser('user');
+            const role = interaction.options.getRole('role');
+            const member = await interaction.guild.members.fetch(user.id);
+
+            // Cek permission
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+                return interaction.reply({
+                    content: '❌ Anda tidak memiliki izin ManageRoles!',
+                    ephemeral: true
+                });
+            }
+
+            // Cek apakah member memiliki role
+            if (!member.roles.cache.has(role.id)) {
+                return interaction.reply({
+                    content: `❌ ${user.tag} tidak memiliki role ${role.name}!`,
+                    ephemeral: true
+                });
+            }
+
+            try {
+                await member.roles.remove(role);
+                
+                const embed = new EmbedBuilder()
+                    .setTitle('✅ Role Dihapus')
+                    .setColor('#e74c3c')
+                    .setDescription(`Role berhasil dihapus dari member`)
+                    .addFields(
+                        { name: 'Member', value: `${user} (${user.tag})`, inline: true },
+                        { name: 'Role', value: `${role.name}`, inline: true },
+                        { name: 'Dihapus Oleh', value: `${interaction.user.tag}`, inline: true }
+                    )
+                    .setTimestamp();
+
+                interaction.reply({ embeds: [embed] });
+                sendLog(interaction.guild, embed);
+
+            } catch (error) {
+                console.error(error);
+                interaction.reply({
+                    content: `❌ Terjadi error: ${error.message}`,
+                    ephemeral: true
+                });
+            }
         }
     }
 
