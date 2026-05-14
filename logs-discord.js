@@ -45,35 +45,36 @@ client.on('interactionCreate', async (interaction) => {
 
     // COMMAND: /addrole
     if (commandName === 'addrole') {
-        const user = interaction.options.getUser('user');
-        const role = interaction.options.getRole('role');
-        const member = await interaction.guild.members.fetch(user.id);
-
-        // Cek permission
-        if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
-            return interaction.reply({
-                content: '❌ Anda tidak memiliki izin ManageRoles!',
-                ephemeral: true
-            });
-        }
-
-        // Cek apakah member sudah memiliki role
-        if (member.roles.cache.has(role.id)) {
-            return interaction.reply({
-                content: `❌ ${user.tag} sudah memiliki role ${role.name}!`,
-                ephemeral: true
-            });
-        }
-
-        // Cek apakah role lebih tinggi dari bot
-        if (role.position >= interaction.guild.members.me.roles.highest.position) {
-            return interaction.reply({
-                content: `❌ Role ${role.name} lebih tinggi atau sama dengan role bot saya!`,
-                ephemeral: true
-            });
-        }
+        // Amankan interaksi agar tidak timeout (Unknown interaction)
+        // ephemeral: true membuat pesan loading hanya dilihat oleh pengirim command
+        await interaction.deferReply({ ephemeral: true });
 
         try {
+            const user = interaction.options.getUser('user');
+            const role = interaction.options.getRole('role');
+            const member = await interaction.guild.members.fetch(user.id);
+
+            // Cek permission
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+                return interaction.editReply({
+                    content: '❌ Anda tidak memiliki izin ManageRoles!'
+                });
+            }
+
+            // Cek apakah member sudah memiliki role
+            if (member.roles.cache.has(role.id)) {
+                return interaction.editReply({
+                    content: `❌ ${user.tag} sudah memiliki role ${role.name}!`
+                });
+            }
+
+            // Cek apakah role lebih tinggi dari bot
+            if (role.position >= interaction.guild.members.me.roles.highest.position) {
+                return interaction.editReply({
+                    content: `❌ Role ${role.name} lebih tinggi atau sama dengan role bot saya!`
+                });
+            }
+
             await member.roles.add(role);
             
             const embed = new EmbedBuilder()
@@ -87,41 +88,43 @@ client.on('interactionCreate', async (interaction) => {
                 )
                 .setTimestamp();
 
-            interaction.reply({ embeds: [embed] });
+            // Gunakan editReply karena statusnya sudah di-defer di awal
+            await interaction.editReply({ embeds: [embed] });
             sendLog(interaction.guild, embed);
 
         } catch (error) {
             console.error(error);
-            interaction.reply({
-                content: `❌ Terjadi error: ${error.message}`,
-                ephemeral: true
+            // Gunakan editReply untuk menangkap error jika proses gagal
+            await interaction.editReply({
+                content: `❌ Terjadi error: ${error.message}`
             });
         }
     }
 
     // COMMAND: /removerole
     if (commandName === 'removerole') {
-        const user = interaction.options.getUser('user');
-        const role = interaction.options.getRole('role');
-        const member = await interaction.guild.members.fetch(user.id);
-
-        // Cek permission
-        if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
-            return interaction.reply({
-                content: '❌ Anda tidak memiliki izin ManageRoles!',
-                ephemeral: true
-            });
-        }
-
-        // Cek apakah member memiliki role
-        if (!member.roles.cache.has(role.id)) {
-            return interaction.reply({
-                content: `❌ ${user.tag} tidak memiliki role ${role.name}!`,
-                ephemeral: true
-            });
-        }
+        // Amankan interaksi agar tidak timeout (Unknown interaction)
+        await interaction.deferReply({ ephemeral: true });
 
         try {
+            const user = interaction.options.getUser('user');
+            const role = interaction.options.getRole('role');
+            const member = await interaction.guild.members.fetch(user.id);
+
+            // Cek permission
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+                return interaction.editReply({
+                    content: '❌ Anda tidak memiliki izin ManageRoles!'
+                });
+            }
+
+            // Cek apakah member memiliki role
+            if (!member.roles.cache.has(role.id)) {
+                return interaction.editReply({
+                    content: `❌ ${user.tag} tidak memiliki role ${role.name}!`
+                });
+            }
+
             await member.roles.remove(role);
             
             const embed = new EmbedBuilder()
@@ -135,14 +138,15 @@ client.on('interactionCreate', async (interaction) => {
                 )
                 .setTimestamp();
 
-            interaction.reply({ embeds: [embed] });
+            // Gunakan editReply karena statusnya sudah di-defer di awal
+            await interaction.editReply({ embeds: [embed] });
             sendLog(interaction.guild, embed);
 
         } catch (error) {
             console.error(error);
-            interaction.reply({
-                content: `❌ Terjadi error: ${error.message}`,
-                ephemeral: true
+            // Gunakan editReply untuk menangkap error jika proses gagal
+            await interaction.editReply({
+                content: `❌ Terjadi error: ${error.message}`
             });
         }
     }
