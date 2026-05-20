@@ -206,7 +206,21 @@ const commands = [
             },
         ],
     },
+    // Tambahkan perintah addticket di bawah ini:
+    {
+        name: 'addticket',
+        description: 'Menambahkan pengguna ke dalam tiket unban ini',
+        options: [
+            {
+                name: 'target',
+                type: 6, // Type 6 artinya USER option
+                description: 'Pengguna yang ingin dimasukkan ke tiket',
+                required: true,
+            },
+        ],
+    },
 ];
+
 
 const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
 
