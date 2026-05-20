@@ -33,6 +33,41 @@ client.on('messageCreate', async (message) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+    
+    // =======================================================
+    // HANDLER UNTUK SLASH COMMAND /ADDTICKET (DARI INDEX.JS)
+    // =======================================================
+    if (interaction.isChatInputCommand()) {
+        if (interaction.commandName === 'addticket') {
+            // 1. Cek apakah pengirim perintah punya Role Admin
+            if (!interaction.member.roles.cache.has(ADMIN_ROLE_ID)) {
+                return interaction.reply({ content: '❌ Hanya Admin yang boleh menggunakan perintah ini!', ephemeral: true });
+            }
+
+            // 2. Cek apakah perintah diketik di dalam kategori tiket unban
+            if (interaction.channel.parentId !== CATEGORY_ID) {
+                return interaction.reply({ content: '❌ Perintah ini hanya bisa digunakan di dalam channel tiket unban!', ephemeral: true });
+            }
+
+            // 'target' sesuai dengan nama opsi yang ada di array index.js Anda
+            const targetUser = interaction.options.getUser('target');
+
+            try {
+                // 3. Tambahkan izin user baru ke channel ini
+                await interaction.channel.permissionOverwrites.edit(targetUser.id, {
+                    ViewChannel: true,
+                    SendMessages: true,
+                    ReadMessageHistory: true
+                });
+
+                return interaction.reply({ content: `✅ Berhasil menambahkan ${targetUser} ke dalam tiket ini.` });
+            } catch (error) {
+                console.error(error);
+                return interaction.reply({ content: '❌ Gagal menambahkan pengguna. Pastikan bot memiliki izin mengatur channel!', ephemeral: true });
+            }
+        }
+    }
+
     // 1. MUNCULKAN MODAL
     if (interaction.isButton() && interaction.customId === 'open_unban_form') {
         const modal = new ModalBuilder()
@@ -62,12 +97,14 @@ client.on('interactionCreate', async (interaction) => {
             admin: interaction.fields.getTextInputValue('banned_by')
         };
 
-        // Membuat ID acak 4 digit agar nama channel unik
         const randomID = Math.floor(1000 + Math.random() * 9000);
-        const channelName = `unban-${data.ucp}-${randomID}`;
+        
+        // Perbaikan otomatis: Nama channel dipaksa huruf kecil agar Discord API tidak error
+        const rawChannelName = `unban-${data.ucp}-${randomID}`;
+        const cleanChannelName = rawChannelName.toLowerCase().replace(/[^a-z0-9-_]/g, '');
         
         const ticketChannel = await interaction.guild.channels.create({
-            name: channelName,
+            name: cleanChannelName,
             type: ChannelType.GuildText,
             parent: CATEGORY_ID,
             permissionOverwrites: [
@@ -77,9 +114,8 @@ client.on('interactionCreate', async (interaction) => {
             ],
         });
 
-        // Embed rapi berurutan ke bawah menggunakan Description
         const resultEmbed = new EmbedBuilder()
-            .setTitle(`🎫 Tiket Unban: ${channelName.toUpperCase()}`)
+            .setTitle(`🎫 Tiket Unban: ${cleanChannelName.toUpperCase()}`)
             .setColor(0xFFFF00)
             .setDescription(
                 `👤 **User**\n${interaction.user} (${interaction.user.id})\n\n` +
@@ -102,7 +138,6 @@ client.on('interactionCreate', async (interaction) => {
 
     // 3. TUTUP TIKET (HANYA UNTUK ADMIN)
     if (interaction.isButton() && interaction.customId === 'close_ticket') {
-        // Cek apakah pengklik memiliki role admin
         if (!interaction.member.roles.cache.has(ADMIN_ROLE_ID)) {
             return interaction.reply({ content: '❌ Hanya Admin yang boleh menutup tiket ini!', ephemeral: true });
         }
