@@ -108,6 +108,9 @@ client.on('messageCreate', async (message) => {
             });
 
             let isActioned = false;
+            
+            // PERBAIKAN: Mengunci status spam gambar agar nilainya tidak hilang saat waktu 30 detik habis
+            const harusHapusGambar = isSpamImage; 
 
             collector.on('collect', async (interaction) => {
                 if (interaction.user.id !== message.author.id) {
@@ -134,15 +137,15 @@ client.on('messageCreate', async (message) => {
                     await sentMessage.delete().catch(() => {});
                 } else {
                     // JIKA KLIK MERAH (BATAL)
-                    if (isSpamImage) await message.delete().catch(() => {}); // Hapus gambarnya di sini
+                    if (harusHapusGambar) await message.delete().catch(() => {}); 
                     await applyAutoTimeout(message.member, sentMessage, triggerReason);
                 }
             });
 
             collector.on('end', async (collected, reason) => {
-                // JIKA DIABAIKAN (TIMEOUT TIMEOUT)
+                // JIKA DIABAIKAN (TIMEOUT TOMBOL HABIS)
                 if (!isActioned && reason === 'time') {
-                    if (isSpamImage) await message.delete().catch(() => {}); // Hapus gambarnya di sini
+                    if (harusHapusGambar) await message.delete().catch(() => {}); 
                     await applyAutoTimeout(message.member, sentMessage, triggerReason);
                 }
             });
