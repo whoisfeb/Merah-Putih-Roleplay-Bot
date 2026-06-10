@@ -36,7 +36,7 @@ const CONFIG = {
         '1392382455981412397',
         '1392382455947989066'
     ], 
-    QRIS_FILE_NAME: 'qrisgopay.png' ,
+    QRIS_FILE_NAME: 'merahputuhqr.png' ,
     ALLOWED_CHANNELS: [
         '1392382459060162631', 
         '1392382459060162639',
