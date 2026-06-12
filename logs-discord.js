@@ -240,7 +240,7 @@ client.on('channelDelete', async (channel) => {
     sendLog(channel.guild, embed);
 });
 
-// Log saat Channel / Kategori / Izin Diperbarui
+// ✅ PERBAIKAN: Log saat Channel / Kategori / Izin Diperbarui
 client.on('channelUpdate', async (oldChannel, newChannel) => {
     if (!oldChannel.guild) return;
     await new Promise(resolve => setTimeout(resolve, 1000));
@@ -248,21 +248,75 @@ client.on('channelUpdate', async (oldChannel, newChannel) => {
     const embed = new EmbedBuilder().setTimestamp().setColor('#f1c40f');
     const tipeKonten = oldChannel.type === 4 ? 'Kategori' : 'Channel';
 
-    // A. Deteksi Perubahan Izin (Permission Overwrites) Channel / Kategori
+    // ✅ A. PERBAIKAN: Deteksi Perubahan Izin (Permission Overwrites) Channel / Kategori
     if (!oldChannel.permissionOverwrites.cache.equals(newChannel.permissionOverwrites.cache)) {
-        const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelOverwriteUpdate });
-        const logEntry = fetchedLogs.entries.first();
-        const executor = logEntry ? logEntry.executor.tag : 'Tidak diketahui';
+        // Validasi double-check: Apakah benar-benar ada perubahan permission?
+        const oldPerms = oldChannel.permissionOverwrites.cache;
+        const newPerms = newChannel.permissionOverwrites.cache;
 
-        embed.setTitle(`🔒 Izin (Permission) ${tipeKonten} Diubah`)
-            .setColor('#e67e22')
-            .setDescription(`Hak akses pengaturan pada channel ${newChannel} telah dimodifikasi.`)
-            .addFields(
-                { name: 'Target Saluran', value: `**${newChannel.name}**` },
-                { name: 'Diubah Oleh', value: `**${executor}**` },
-                { name: 'Catatan', value: '*Periksa pengaturan channel secara langsung untuk melihat detail role/member yang diubah.*' }
-            );
-        sendLog(newChannel.guild, embed);
+        // Cek jika jumlah permission sama dan isinya juga sama (false positive)
+        if (oldPerms.size === newPerms.size && oldPerms.size > 0) {
+            let adaPerubahanReal = false;
+            
+            for (const [key, oldPerm] of oldPerms) {
+                const newPerm = newPerms.get(key);
+                if (!newPerm) {
+                    adaPerubahanReal = true;
+                    break;
+                }
+                // Cek apakah allow/deny flags berbeda
+                if (oldPerm.allow.bitfield !== newPerm.allow.bitfield || 
+                    oldPerm.deny.bitfield !== newPerm.deny.bitfield) {
+                    adaPerubahanReal = true;
+                    break;
+                }
+            }
+
+            // ❌ SKIP jika tidak ada perubahan permission yang real
+            if (!adaPerubahanReal) {
+                console.log(`⏭️ Skip: Tidak ada perubahan permission yang signifikan di ${newChannel.name}`);
+                // Lanjut ke pengecekan perubahan nama/kategori
+            } else {
+                // ✅ Ada perubahan real
+                const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelOverwriteUpdate });
+                const logEntry = fetchedLogs.entries.first();
+                
+                // ❌ SKIP jika tidak ada audit log entry (kemungkinan sistem/bot)
+                if (!logEntry) {
+                    console.log(`⏭️ Skip: Permission berubah tapi tidak ada di audit log`);
+                } else {
+                    const executor = logEntry.executor.tag;
+                    embed.setTitle(`🔒 Izin (Permission) ${tipeKonten} Diubah`)
+                        .setColor('#e67e22')
+                        .setDescription(`Hak akses pengaturan pada channel ${newChannel} telah dimodifikasi.`)
+                        .addFields(
+                            { name: 'Target Saluran', value: `**${newChannel.name}**` },
+                            { name: 'Diubah Oleh', value: `**${executor}**` },
+                            { name: 'Catatan', value: '*Periksa pengaturan channel secara langsung untuk melihat detail role/member yang diubah.*' }
+                        );
+                    sendLog(newChannel.guild, embed);
+                }
+            }
+        } else if (oldPerms.size !== newPerms.size) {
+            // ✅ Ada penambahan/pengurangan permission overwrite
+            const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelOverwriteUpdate });
+            const logEntry = fetchedLogs.entries.first();
+            
+            if (!logEntry) {
+                console.log(`⏭️ Skip: Permission overwrite berubah tapi tidak ada di audit log`);
+            } else {
+                const executor = logEntry.executor.tag;
+                embed.setTitle(`🔒 Izin (Permission) ${tipeKonten} Diubah`)
+                    .setColor('#e67e22')
+                    .setDescription(`Hak akses pengaturan pada channel ${newChannel} telah dimodifikasi.`)
+                    .addFields(
+                        { name: 'Target Saluran', value: `**${newChannel.name}**` },
+                        { name: 'Diubah Oleh', value: `**${executor}**` },
+                        { name: 'Catatan', value: '*Periksa pengaturan channel secara langsung untuk melihat detail role/member yang diubah.*' }
+                    );
+                sendLog(newChannel.guild, embed);
+            }
+        }
         return; 
     }
 
