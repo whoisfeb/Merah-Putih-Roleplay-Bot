@@ -78,32 +78,15 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // 2. Button Logic
-     // --- 0. LOGIKA LIHAT RULES (EPHEMERAL) ---
-
-        if (interaction.isButton() && interaction.customId === 'lihat_rules') {
-    const rulesEmbed = new EmbedBuilder()
-        .setTitle('📜 Aturan Top Up - Merah Putih Roleplay')
-        .setColor('#f1c40f')
-        .setDescription(`
-**1. Transaksi In-Game**
-Semua item topup baik itu kendaraan, rumah, atau bisnis **tidak dapat diperjualbelikan** dengan uang IC (Ingame).
-
-**2. Kesalahan Transfer**
-Kesalahan dalam melakukan transfer **bukan tanggung jawab** dari pihak Merah Putih Roleplay. Mohon teliti sebelum mengirim.
-
-**3. Kebijakan Refund**
-**Tidak ada refund** setelah transaksi/pembayaran dilakukan, kecuali terdapat kesalahan teknis atau bug dari server.
-
-**4. Pelanggaran Sanksi**
-Jika ketahuan melakukan pelanggaran yang berpotensi banned atau berpotensi hilangnya item topup, maka **tidak ada refund** terkait item donate yang hilang.
-
-**5. Larangan RMT**
-Dilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned.
-        `)
-        .setFooter({ text: 'Harap dipatuhi demi kenyamanan bersama.' });
-
-    return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
-}
+    if (interaction.isButton()) {
+        if (interaction.customId === 'lihat_rules') {
+            const rulesEmbed = new EmbedBuilder()
+                .setTitle('📜 Aturan Top Up - Merah Putih Roleplay')
+                .setColor('#f1c40f')
+                .setDescription("1. Transaksi In-Game tidak boleh diperjualbelikan.\n2. Kesalahan transfer bukan tanggung jawab kami.\n3. Tidak ada refund.\n4. Pelanggaran berakibat sanksi.\n5. Dilarang RMT.")
+                .setFooter({ text: 'Harap dipatuhi demi kenyamanan bersama.' });
+            return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
+        }
 
         if (interaction.customId === 'buka_modal') {
             const existingTicket = interaction.guild.channels.cache.find(c => c.name.includes(interaction.user.username.toLowerCase()));
@@ -118,12 +101,11 @@ Dilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) anta
             await interaction.showModal(modal);
         }
 
-        // --- Perbaikan Done & Tutup (Gunakan Defer) ---
         if (interaction.customId === 'done_tiket' || interaction.customId === 'tutup_tiket') {
             const isAdmin = interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
             if (!isAdmin) return interaction.reply({ content: '❌ Hanya Admin!', ephemeral: true });
 
-            await interaction.deferReply(); // Mencegah timeout 3 detik
+            await interaction.deferReply(); 
 
             if (interaction.customId === 'done_tiket') {
                 const messages = await interaction.channel.messages.fetch({ limit: 100 });
@@ -143,7 +125,7 @@ Dilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) anta
             }
             setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
         }
-    }
+    } // <--- Penutup blok if(interaction.isButton()) yang sebelumnya hilang
 
     // 3. Modal Submit
     if (interaction.type === InteractionType.ModalSubmit && interaction.customId === 'form_tiket') {
