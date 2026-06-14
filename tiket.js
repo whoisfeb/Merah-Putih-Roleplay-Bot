@@ -59,32 +59,30 @@ client.on('messageCreate', async (message) => {
 
 client.on('interactionCreate', async (interaction) => {
 
-    // --- TAMBAHAN LOGIKA SLASH COMMAND ---
-if (interaction.isChatInputCommand()) {
-    const isAdmin = interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
-    if (!isAdmin) return interaction.reply({ content: '❌ Hanya Admin!', ephemeral: true });
+   // 1. Tangani Slash Command (/claimtopup, /closetopup)
+    if (interaction.isChatInputCommand()) {
+        const isAdmin = interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
+        if (!isAdmin) return interaction.reply({ content: '❌ Hanya Admin!', ephemeral: true });
 
-    // Pengecekan agar command hanya bisa dipakai di channel tiket
-    if (!interaction.channel.name.startsWith('tiket-')) {
-        return interaction.reply({ content: '❌ Command ini hanya bisa digunakan di dalam channel tiket!', ephemeral: true });
-    }
+        // Filter keamanan: Pastikan hanya di channel tiket
+        if (!interaction.channel.name.startsWith('tiket-')) {
+            return interaction.reply({ content: '❌ Gunakan command ini di dalam channel tiket!', ephemeral: true });
+        }
 
-    await interaction.deferReply(); // Menunda balasan agar tidak timeout saat ambil log
-
-    try {
-        const reason = interaction.options.getString('reason');
+        await interaction.deferReply(); // Wajib jika proses memakan waktu
 
         if (interaction.commandName === 'claimtopup') {
+            const reason = interaction.options.getString('reason');
+            await interaction.channel.setName(`claimed-${interaction.channel.name.replace('tiket-', '')}`);
             await interaction.editReply(`✅ Tiket ini telah di-claim oleh ${interaction.user}.\n**Alasan:** ${reason}`);
         }
 
         if (interaction.commandName === 'closetopup') {
-            // Fetch pesan untuk log
+            const reason = interaction.options.getString('reason');
+            
             const messages = await interaction.channel.messages.fetch({ limit: 100 });
-            let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan: ${reason}\n----------------------------------------\n\n`;
-            messages.reverse().forEach(m => {
-                logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`;
-            });
+            let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan Penutupan: ${reason}\n----------------------------------------\n\n`;
+            messages.reverse().forEach(m => logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`);
 
             const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
             if (logChannel) {
@@ -94,15 +92,11 @@ if (interaction.isChatInputCommand()) {
                     files: [{ attachment: buffer, name: `${interaction.channel.name}-log.txt` }] 
                 });
             }
-
-            await interaction.editReply('⌛ Tiket akan dihapus dalam 3 detik...');
+            await interaction.editReply('⌛ Tiket ditutup dan log dikirim.');
             setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
         }
-    } catch (error) {
-        console.error(error);
-        await interaction.editReply('❌ Terjadi kesalahan saat memproses perintah.');
+        return; // Selesai untuk Slash Command
     }
-}
     
     // --- 0. LOGIKA LIHAT RULES (EPHEMERAL) ---
     if (interaction.isButton() && interaction.customId === 'lihat_rules') {
