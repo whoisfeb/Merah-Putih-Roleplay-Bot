@@ -83,22 +83,8 @@ client.on('interactionCreate', async (interaction) => {
             const rulesEmbed = new EmbedBuilder()
                 .setTitle('📜 Aturan Top Up - Merah Putih Roleplay')
                 .setColor('#f1c40f')
-                .setDescription(`**1. Transaksi In-Game**
-Semua item topup baik itu kendaraan, rumah, atau bisnis **tidak dapat diperjualbelikan** dengan uang IC (Ingame).
-
-**2. Kesalahan Transfer**
-Kesalahan dalam melakukan transfer **bukan tanggung jawab** dari pihak Merah Putih Roleplay. Mohon teliti sebelum mengirim.
-
-**3. Kebijakan Refund**
-**Tidak ada refund** setelah transaksi/pembayaran dilakukan, kecuali terdapat kesalahan teknis atau bug dari server.
-
-**4. Pelanggaran Sanksi**
-Jika ketahuan melakukan pelanggaran yang berpotensi banned atau berpotensi hilangnya item topup, maka **tidak ada refund** terkait item donate yang hilang.
-
-**5. Larangan RMT**
-Dilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned.`.trim())
+                .setDescription(`**1. Transaksi In-Game**\nSemua item topup baik itu kendaraan, rumah, atau bisnis **tidak dapat diperjualbelikan** dengan uang IC (Ingame).\n\n**2. Kesalahan Transfer**\nKesalahan dalam melakukan transfer **bukan tanggung jawab** dari pihak Merah Putih Roleplay. Mohon teliti sebelum mengirim.\n\n**3. Kebijakan Refund**\n**Tidak ada refund** setelah transaksi/pembayaran dilakukan, kecuali terdapat kesalahan teknis atau bug dari server.\n\n**4. Pelanggaran Sanksi**\nJika ketahuan melakukan pelanggaran yang berpotensi banned atau berpotensi hilangnya item topup, maka **tidak ada refund** terkait item donate yang hilang.\n\n**5. Larangan RMT**\nDilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned.`.trim())
                 .setFooter({ text: 'Harap dipatuhi demi kenyamanan bersama.' });
-
             return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
         }
 
@@ -139,29 +125,40 @@ Dilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) anta
             }
             setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
         }
-    } // <--- Penutup blok if(interaction.isButton()) yang sebelumnya hilang
+    }
 
-    // 3. Modal Submit
+    // 3. Modal Submit (Sekarang sudah di dalam client.on('interactionCreate'))
     if (interaction.type === InteractionType.ModalSubmit && interaction.customId === 'form_tiket') {
         await interaction.deferReply({ ephemeral: true });
+        const randomID = Math.floor(1000 + Math.random() * 9000);
         const ticketChannel = await interaction.guild.channels.create({
-            name: `tiket-${interaction.user.username}-${Math.floor(1000 + Math.random() * 9000)}`,
+            name: `tiket-${interaction.user.username}-${randomID}`,
             type: ChannelType.GuildText,
-            parent: CATEGORY_ID
+            parent: CATEGORY_ID,
+            permissionOverwrites: [
+                { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
+                { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory] },
+                ...ALLOWED_ADMIN_ROLES.map(roleId => ({ id: roleId, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }))
+            ]
         });
 
-        const embedInfo = new EmbedBuilder().setTitle('Detail Tiket').addFields(
-            { name: 'UCP', value: interaction.fields.getTextInputValue('ucp') },
-            { name: 'Karakter', value: interaction.fields.getTextInputValue('nama') },
-            { name: 'Item', value: interaction.fields.getTextInputValue('item') }
-        );
-        
+        const embedInfo = new EmbedBuilder()
+            .setTitle(`Detail Tiket #${randomID}`)
+            .setColor('#2ecc71')
+            .setTimestamp()
+            .addFields(
+                { name: '👤 User', value: `${interaction.user}`, inline: true },
+                { name: '🆔 UCP', value: interaction.fields.getTextInputValue('ucp'), inline: true },
+                { name: '🎮 Karakter', value: interaction.fields.getTextInputValue('nama'), inline: true },
+                { name: '📦 Item', value: interaction.fields.getTextInputValue('item') }
+            );
+
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId('done_tiket').setLabel('Done').setStyle(ButtonStyle.Success),
-            new ButtonBuilder().setCustomId('tutup_tiket').setLabel('Tutup').setStyle(ButtonStyle.Danger)
+            new ButtonBuilder().setCustomId('done_tiket').setLabel('Done / Selesai').setEmoji('✅').setStyle(ButtonStyle.Success),
+            new ButtonBuilder().setCustomId('tutup_tiket').setLabel('Tutup Tiket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
         );
 
-        await ticketChannel.send({ content: `${interaction.user}`, embeds: [embedInfo], components: [row] });
+        await ticketChannel.send({ content: `Halo ${interaction.user}, Admin <@&${ALLOWED_ADMIN_ROLES[2]}> akan segera melayani Anda.`, embeds: [embedInfo], components: [row] });
         await interaction.editReply({ content: `✅ Tiket berhasil dibuat: ${ticketChannel}` });
     }
 });
