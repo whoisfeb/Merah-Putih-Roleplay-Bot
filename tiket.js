@@ -83,8 +83,22 @@ client.on('interactionCreate', async (interaction) => {
             const rulesEmbed = new EmbedBuilder()
                 .setTitle('📜 Aturan Top Up - Merah Putih Roleplay')
                 .setColor('#f1c40f')
-                .setDescription("1. Transaksi In-Game tidak boleh diperjualbelikan.\n2. Kesalahan transfer bukan tanggung jawab kami.\n3. Tidak ada refund.\n4. Pelanggaran berakibat sanksi.\n5. Dilarang RMT.")
+                .setDescription(`**1. Transaksi In-Game**
+Semua item topup baik itu kendaraan, rumah, atau bisnis **tidak dapat diperjualbelikan** dengan uang IC (Ingame).
+
+**2. Kesalahan Transfer**
+Kesalahan dalam melakukan transfer **bukan tanggung jawab** dari pihak Merah Putih Roleplay. Mohon teliti sebelum mengirim.
+
+**3. Kebijakan Refund**
+**Tidak ada refund** setelah transaksi/pembayaran dilakukan, kecuali terdapat kesalahan teknis atau bug dari server.
+
+**4. Pelanggaran Sanksi**
+Jika ketahuan melakukan pelanggaran yang berpotensi banned atau berpotensi hilangnya item topup, maka **tidak ada refund** terkait item donate yang hilang.
+
+**5. Larangan RMT**
+Dilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned.`.trim())
                 .setFooter({ text: 'Harap dipatuhi demi kenyamanan bersama.' });
+
             return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
         }
 
