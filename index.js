@@ -219,6 +219,17 @@ const commands = [
             },
         ],
     },
+
+    {
+        name: 'claimtopup',
+        description: 'Claim tiket topup dengan alasan',
+        options: [{ name: 'reason', type: 3, description: 'Alasan claim', required: true }]
+    },
+    {
+        name: 'closetopup',
+        description: 'Tutup tiket topup dengan alasan',
+        options: [{ name: 'reason', type: 3, description: 'Alasan penutupan', required: true }]
+    }
 ];
 
 
