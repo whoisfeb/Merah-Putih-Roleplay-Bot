@@ -58,6 +58,51 @@ client.on('messageCreate', async (message) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
+
+    // --- TAMBAHAN LOGIKA SLASH COMMAND ---
+if (interaction.isChatInputCommand()) {
+    const isAdmin = interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
+    if (!isAdmin) return interaction.reply({ content: '❌ Hanya Admin!', ephemeral: true });
+
+    // Pengecekan agar command hanya bisa dipakai di channel tiket
+    if (!interaction.channel.name.startsWith('tiket-')) {
+        return interaction.reply({ content: '❌ Command ini hanya bisa digunakan di dalam channel tiket!', ephemeral: true });
+    }
+
+    await interaction.deferReply(); // Menunda balasan agar tidak timeout saat ambil log
+
+    try {
+        const reason = interaction.options.getString('reason');
+
+        if (interaction.commandName === 'claimtopup') {
+            await interaction.editReply(`✅ Tiket ini telah di-claim oleh ${interaction.user}.\n**Alasan:** ${reason}`);
+        }
+
+        if (interaction.commandName === 'closetopup') {
+            // Fetch pesan untuk log
+            const messages = await interaction.channel.messages.fetch({ limit: 100 });
+            let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan: ${reason}\n----------------------------------------\n\n`;
+            messages.reverse().forEach(m => {
+                logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`;
+            });
+
+            const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+            if (logChannel) {
+                const buffer = Buffer.from(logContent, 'utf-8');
+                await logChannel.send({ 
+                    content: `✅ **TIKET SELESAI**: Channel **${interaction.channel.name}** ditutup oleh ${interaction.user}.\n**Alasan:** ${reason}`,
+                    files: [{ attachment: buffer, name: `${interaction.channel.name}-log.txt` }] 
+                });
+            }
+
+            await interaction.editReply('⌛ Tiket akan dihapus dalam 3 detik...');
+            setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
+        }
+    } catch (error) {
+        console.error(error);
+        await interaction.editReply('❌ Terjadi kesalahan saat memproses perintah.');
+    }
+}
     
     // --- 0. LOGIKA LIHAT RULES (EPHEMERAL) ---
     if (interaction.isButton() && interaction.customId === 'lihat_rules') {
