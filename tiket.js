@@ -60,43 +60,44 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
 
    // 1. Tangani Slash Command (/claimtopup, /closetopup)
-    if (interaction.isChatInputCommand()) {
-        const isAdmin = interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
-        if (!isAdmin) return interaction.reply({ content: '❌ Hanya Admin!', ephemeral: true });
+    // --- LOGIKA SLASH COMMAND ---
+if (interaction.isChatInputCommand()) {
+    const isAdmin = interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
+    if (!isAdmin) return interaction.reply({ content: '❌ Hanya Admin!', ephemeral: true });
 
-        // Filter keamanan: Pastikan hanya di channel tiket
-        if (!interaction.channel.name.startsWith('tiket-')) {
-            return interaction.reply({ content: '❌ Gunakan command ini di dalam channel tiket!', ephemeral: true });
-        }
-
-        await interaction.deferReply(); // Wajib jika proses memakan waktu
-
-        if (interaction.commandName === 'claimtopup') {
-            const reason = interaction.options.getString('reason');
-            await interaction.channel.setName(`claimed-${interaction.channel.name.replace('tiket-', '')}`);
-            await interaction.editReply(`✅ Tiket ini telah di-claim oleh ${interaction.user}.\n**Alasan:** ${reason}`);
-        }
-
-        if (interaction.commandName === 'closetopup') {
-            const reason = interaction.options.getString('reason');
-            
-            const messages = await interaction.channel.messages.fetch({ limit: 100 });
-            let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan Penutupan: ${reason}\n----------------------------------------\n\n`;
-            messages.reverse().forEach(m => logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`);
-
-            const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
-            if (logChannel) {
-                const buffer = Buffer.from(logContent, 'utf-8');
-                await logChannel.send({ 
-                    content: `✅ **TIKET SELESAI**: Channel **${interaction.channel.name}** ditutup oleh ${interaction.user}.\n**Alasan:** ${reason}`,
-                    files: [{ attachment: buffer, name: `${interaction.channel.name}-log.txt` }] 
-                });
-            }
-            await interaction.editReply('⌛ Tiket ditutup dan log dikirim.');
-            setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
-        }
-        return; // Selesai untuk Slash Command
+    // Filter keamanan: Hanya bisa digunakan di channel tiket
+    if (!interaction.channel.name.startsWith('tiket-')) {
+        return interaction.reply({ content: '❌ Command ini hanya bisa digunakan di dalam channel tiket!', ephemeral: true });
     }
+
+    await interaction.deferReply();
+
+    // 1. LOGIKA CLAIMTOPUP = SELESAI DENGAN LOG
+    if (interaction.commandName === 'claimtopup') {
+        const reason = interaction.options.getString('reason');
+
+        const messages = await interaction.channel.messages.fetch({ limit: 100 });
+        let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan: ${reason}\n----------------------------------------\n\n`;
+        messages.reverse().forEach(m => logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`);
+
+        const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) {
+            const buffer = Buffer.from(logContent, 'utf-8');
+            await logChannel.send({ 
+                content: `✅ **TIKET SELESAI (via /claimtopup)**: Channel **${interaction.channel.name}** ditutup oleh ${interaction.user}.\n**Alasan:** ${reason}`,
+                files: [{ attachment: buffer, name: `${interaction.channel.name}-log.txt` }] 
+            });
+        }
+        await interaction.editReply('⌛ Memproses log dan menghapus channel...');
+        setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
+    }
+
+    // 2. LOGIKA CLOSETOPUP = TUTUP TANPA LOG
+    if (interaction.commandName === 'closetopup') {
+        await interaction.editReply('⚠️ Menutup tiket tanpa log...');
+        setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
+    }
+}
     
     // --- 0. LOGIKA LIHAT RULES (EPHEMERAL) ---
     if (interaction.isButton() && interaction.customId === 'lihat_rules') {
