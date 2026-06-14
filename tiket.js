@@ -78,14 +78,32 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // 2. Button Logic
-    if (interaction.isButton()) {
-        if (interaction.customId === 'lihat_rules') {
-            const rulesEmbed = new EmbedBuilder()
-                .setTitle('📜 Aturan Top Up - Merah Putih Roleplay')
-                .setColor('#f1c40f')
-                .setDescription("**1. Transaksi In-Game**\nSemua item topup... (aturan anda)");
-            return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
-        }
+     // --- 0. LOGIKA LIHAT RULES (EPHEMERAL) ---
+
+        if (interaction.isButton() && interaction.customId === 'lihat_rules') {
+    const rulesEmbed = new EmbedBuilder()
+        .setTitle('📜 Aturan Top Up - Merah Putih Roleplay')
+        .setColor('#f1c40f')
+        .setDescription(`
+**1. Transaksi In-Game**
+Semua item topup baik itu kendaraan, rumah, atau bisnis **tidak dapat diperjualbelikan** dengan uang IC (Ingame).
+
+**2. Kesalahan Transfer**
+Kesalahan dalam melakukan transfer **bukan tanggung jawab** dari pihak Merah Putih Roleplay. Mohon teliti sebelum mengirim.
+
+**3. Kebijakan Refund**
+**Tidak ada refund** setelah transaksi/pembayaran dilakukan, kecuali terdapat kesalahan teknis atau bug dari server.
+
+**4. Pelanggaran Sanksi**
+Jika ketahuan melakukan pelanggaran yang berpotensi banned atau berpotensi hilangnya item topup, maka **tidak ada refund** terkait item donate yang hilang.
+
+**5. Larangan RMT**
+Dilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned.
+        `)
+        .setFooter({ text: 'Harap dipatuhi demi kenyamanan bersama.' });
+
+    return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
+}
 
         if (interaction.customId === 'buka_modal') {
             const existingTicket = interaction.guild.channels.cache.find(c => c.name.includes(interaction.user.username.toLowerCase()));
