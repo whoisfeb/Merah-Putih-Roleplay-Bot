@@ -417,10 +417,23 @@ client.on('interactionCreate', async (interaction) => {
                     .setColor(0x3498db)
                     .setDescription('Metode pembayaran melalui transfer bank ke rekening resmi kami.')
                     .addFields(
-                        { name: '📋 LANGKAH-LANGKAH:', value: '1️⃣ Catat nomor rekening bank\n2️⃣ Buka aplikasi perbankan\n3️⃣ Pilih Transfer Antar Bank\n4️⃣ Masukkan nomor tujuan\n5️⃣ Masukkan nominal\n6️⃣ Konfirmasi transaksi\n7️⃣ Screenshot bukti\n8️⃣ Kirim bukti ke admin', inline: false },
-                        { name: '💰 BANK BRI:', value: '```COMING SOON
-```', inline: false },
-                        { name: '💰 BANK MANDIRI:', value: '```COMING SOON```', inline: false }
+                        { 
+                            name: '📋 LANGKAH-LANGKAH:', 
+                            value: '1️⃣ Catat nomor rekening bank\n2️⃣ Buka aplikasi perbankan\n3️⃣ Pilih Transfer Antar Bank\n4️⃣ Masukkan nomor tujuan\n5️⃣ Masukkan nominal\n6️⃣ Konfirmasi transaksi\n7️⃣ Screenshot bukti\n8️⃣ Kirim bukti ke admin', 
+                            inline: false 
+                        },
+                        { 
+                            name: '💰 BANK BRI:', 
+                            value: `\`\`\`
+COMING SOON
+\`\`\``, 
+                            inline: false 
+                        },
+                        { 
+                            name: '💰 BANK MANDIRI:', 
+                            value: '```COMING SOON```', 
+                            inline: false 
+                        }
                     )
                     .setFooter({ text: 'Community Store - Jika ada kendala, hubungi admin!' })
                     .setTimestamp();
@@ -431,13 +444,25 @@ client.on('interactionCreate', async (interaction) => {
                     .setColor(0x1abc9c)
                     .setDescription('Metode pembayaran cepat melalui aplikasi e-wallet.')
                     .addFields(
-                        { name: '💳 GOPAY:', value: '```COMING SOON
-```', inline: false },
-                        { name: '💳 DANA:', value: '```COMING SOON```', inline: false }
+                        { 
+                            name: '💳 GOPAY:', 
+                            value: `\`\`\`
+COMING SOON
+\`\`\``, 
+                            inline: false 
+                        },
+                        { 
+                            name: '💳 DANA:', 
+                            value: '```COMING SOON```', 
+                            inline: false 
+                        }
                     )
                     .setFooter({ text: 'Merah Putih Roleplay x Ottibonynyo Mods!' })
                     .setTimestamp();
-            } 
+            }
+
+            await interaction.editReply({ embeds: [embed], files: files });
+        }
             else if (interaction.customId === 'pay_qris_info') {
                 embed = new EmbedBuilder()
                     .setTitle('📲 PEMBAYARAN QRIS')
