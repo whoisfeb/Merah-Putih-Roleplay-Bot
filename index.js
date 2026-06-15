@@ -288,8 +288,21 @@ client.once('ready', async () => {
 // --- EVENT: INTERACTION (SLASH COMMANDS & BUTTONS) ---
 client.on('interactionCreate', async (interaction) => {
     
+    // 1. Logika Slash Command
     if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'payment') {
+        const { commandName } = interaction;
+
+        // Command yang butuh channel tiket
+        const ticketCommands = ['claimtopup', 'closetopup'];
+        
+        if (ticketCommands.includes(commandName)) {
+            if (!interaction.channel.name.startsWith('tiket-')) {
+                return interaction.reply({ content: '❌ Hanya bisa di channel tiket!', flags: 64 });
+            }
+        }
+
+        // Jalankan perintah payment (Tidak perlu filter tiket)
+        if (commandName === 'payment') {
             
                         // CEK ROLE ID ADMIN
             const hasAdminRole = interaction.member.roles.cache.some(role => 
