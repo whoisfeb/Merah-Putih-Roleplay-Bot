@@ -1,16 +1,19 @@
 {
-  "name": "Merah Putih Bot",
+  "name": "mprp-bot",
   "version": "1.0.0",
-  "description": "Sistem Bot Merah Puti",
-  "main": "index.js",
-  "dependencies": {
-    "@supabase/supabase-js": "^2.39.0",
-    "discord.js": "^14.14.1",
-    "dotenv": "^16.4.5",
-    "axios": "^1.6.0"
-  },
+  "description": "Merah Putih Bot Dashboard",
+  "main": "api/index.js",
   "scripts": {
-    "start": "node -e \"const { spawn } = require('child_process'); [ 'index.js', 'tiket.js', 'tiket-unban.js', 'anti-link.js', 'welcomer.js', 'logs-discord.js', 'open-admin.js' ].forEach(f => spawn('node', [f], { stdio: 'inherit' }))\"",
-    "build": "echo 'No build step required'"
+    "build": "javascript-obfuscator ./src --output ./dist --compact true --self-defending true && node scripts/copy-files.js",
+    "dev": "node api/index.js",
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "devDependencies": {
+    "javascript-obfuscator": "^4.1.1"
   }
 }
