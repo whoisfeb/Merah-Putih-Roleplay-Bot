@@ -424,9 +424,7 @@ client.on('interactionCreate', async (interaction) => {
                         },
                         { 
                             name: '💰 BANK BRI:', 
-                            value: `\`\`\`
-COMING SOON
-\`\`\``, 
+                            value: "```\nCOMING SOON\n```", 
                             inline: false 
                         },
                         { 
@@ -446,9 +444,7 @@ COMING SOON
                     .addFields(
                         { 
                             name: '💳 GOPAY:', 
-                            value: `\`\`\`
-COMING SOON
-\`\`\``, 
+                            value: "```\nCOMING SOON\n```", 
                             inline: false 
                         },
                         { 
@@ -460,9 +456,6 @@ COMING SOON
                     .setFooter({ text: 'Merah Putih Roleplay x Ottibonynyo Mods!' })
                     .setTimestamp();
             }
-
-            await interaction.editReply({ embeds: [embed], files: files });
-        }
             else if (interaction.customId === 'pay_qris_info') {
                 embed = new EmbedBuilder()
                     .setTitle('📲 PEMBAYARAN QRIS')
@@ -478,7 +471,8 @@ COMING SOON
             }
 
             await interaction.editReply({ embeds: [embed], files: files });
-        }
+        } // <--- Kurung kurawal penutup if (interaction.isButton()) yang benar ada di sini
+
     } catch (err) {
         console.error('Error di interactionCreate:', err);
     }
