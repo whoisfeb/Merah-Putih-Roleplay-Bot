@@ -294,175 +294,200 @@ client.once('ready', async () => {
     }, 3600000);
 });
 
+// Helper: aman memanggil reply / followUp tanpa crash saat interaction sudah dibalas/expired
+async function safeReply(interaction, options = {}) {
+  try {
+    if (interaction.replied || interaction.deferred) {
+      return await interaction.followUp(options);
+    } else {
+      return await interaction.reply(options);
+    }
+  } catch (err) {
+    console.error('safeReply gagal:', err);
+    // Fallback: coba beri pesan singkat jika memungkinkan
+    try {
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.deferReply({ flags: 64 });
+      }
+      // Jika options mengandung embeds atau files, editReply mungkin tidak mendukung semua kombinasi,
+      // tapi kita kirim pesan teks fallback agar pengguna tahu ada error.
+      await interaction.editReply({ content: options.content || 'Terjadi error saat mengirim balasan.' });
+    } catch (e) {
+      console.error('safeReply fallback gagal:', e);
+    }
+  }
+}
+
 // --- EVENT: INTERACTION (SLASH COMMANDS & BUTTONS) ---
 client.on('interactionCreate', async (interaction) => {
     
-    if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === 'payment') {
-            
-                        // CEK ROLE ID ADMIN
-            const hasAdminRole = interaction.member.roles.cache.some(role => 
-                CONFIG.ADMIN_ROLE_ID.includes(role.id)
-            );
+    try {
+      if (interaction.isChatInputCommand()) {
+          if (interaction.commandName === 'payment') {
+              
+                          // CEK ROLE ID ADMIN
+              const hasAdminRole = interaction.member.roles.cache.some(role => 
+                  CONFIG.ADMIN_ROLE_ID.includes(role.id)
+              );
 
-            if (!hasAdminRole) {
-                return interaction.reply({ 
-                    content: '❌ Kamu tidak memiliki izin (Role Admin) untuk menggunakan perintah ini!', 
-                    flags: 64
-                });
-            }
+              if (!hasAdminRole) {
+                  return safeReply(interaction, { 
+                      content: '❌ Kamu tidak memiliki izin (Role Admin) untuk menggunakan perintah ini!', 
+                      flags: 64
+                  });
+              }
 
 
-            const paymentEmbed = new EmbedBuilder()
-                .setTitle('💳 METODE PEMBAYARAN RESMI')
-                .setColor(0x00FF00)
-                .setDescription('Pilih metode pembayaran yang kamu inginkan:')
-                .setFooter({ text: 'Community Store • Harap lampirkan bukti transfer.' })
-                .setTimestamp();
+              const paymentEmbed = new EmbedBuilder()
+                  .setTitle('💳 METODE PEMBAYARAN RESMI')
+                  .setColor(0x00FF00)
+                  .setDescription('Pilih metode pembayaran yang kamu inginkan:')
+                  .setFooter({ text: 'Community Store • Harap lampirkan bukti transfer.' })
+                  .setTimestamp();
 
-            const row = new ActionRowBuilder()
-                .addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('pay_bank_info')
-                        .setLabel('Transfer Bank')
-                        .setEmoji('🏦')
-                        .setStyle(ButtonStyle.Primary),
-                    new ButtonBuilder()
-                        .setCustomId('pay_gopay_info')
-                        .setLabel('E-Wallet')
-                        .setEmoji('📱')
-                        .setStyle(ButtonStyle.Secondary),
-                    new ButtonBuilder()
-                        .setCustomId('pay_qris_info')
-                        .setLabel('QRIS')
-                        .setEmoji('📲')
-                        .setStyle(ButtonStyle.Success),
-                );
+              const row = new ActionRowBuilder()
+                  .addComponents(
+                      new ButtonBuilder()
+                          .setCustomId('pay_bank_info')
+                          .setLabel('Transfer Bank')
+                          .setEmoji('🏦')
+                          .setStyle(ButtonStyle.Primary),
+                      new ButtonBuilder()
+                          .setCustomId('pay_gopay_info')
+                          .setLabel('E-Wallet')
+                          .setEmoji('📱')
+                          .setStyle(ButtonStyle.Secondary),
+                      new ButtonBuilder()
+                          .setCustomId('pay_qris_info')
+                          .setLabel('QRIS')
+                          .setEmoji('📲')
+                          .setStyle(ButtonStyle.Success),
+                  );
 
-            await interaction.reply({ 
-                embeds: [paymentEmbed],
-                components: [row],
-                flags: 64
-            });
-        }
+              await safeReply(interaction, { 
+                  embeds: [paymentEmbed],
+                  components: [row],
+                  flags: 64
+              });
+          }
 
-        // COMMAND: /addrole
-        if (interaction.commandName === 'addrole') {
-            const user = interaction.options.getUser('user');
-            const role = interaction.options.getRole('role');
-            const member = await interaction.guild.members.fetch(user.id);
+          // COMMAND: /addrole
+          if (interaction.commandName === 'addrole') {
+              const user = interaction.options.getUser('user');
+              const role = interaction.options.getRole('role');
+              const member = await interaction.guild.members.fetch(user.id);
 
-            // Cek permission
-            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
-                return interaction.reply({
-                    content: '❌ Anda tidak memiliki izin ManageRoles!',
-                    ephemeral: true
-                });
-            }
+              // Cek permission
+              if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+                  return safeReply(interaction, {
+                      content: '❌ Anda tidak memiliki izin ManageRoles!',
+                      flags: 64
+                  });
+              }
 
-            // Cek apakah member sudah memiliki role
-            if (member.roles.cache.has(role.id)) {
-                return interaction.reply({
-                    content: `❌ ${user.tag} sudah memiliki role ${role.name}!`,
-                    ephemeral: true
-                });
-            }
+              // Cek apakah member sudah memiliki role
+              if (member.roles.cache.has(role.id)) {
+                  return safeReply(interaction, {
+                      content: `❌ ${user.tag} sudah memiliki role ${role.name}!`,
+                      flags: 64
+                  });
+              }
 
-            // Cek apakah role lebih tinggi dari bot
-            if (role.position >= interaction.guild.members.me.roles.highest.position) {
-                return interaction.reply({
-                    content: `❌ Role ${role.name} lebih tinggi atau sama dengan role bot saya!`,
-                    ephemeral: true
-                });
-            }
+              // Cek apakah role lebih tinggi dari bot
+              if (role.position >= interaction.guild.members.me.roles.highest.position) {
+                  return safeReply(interaction, {
+                      content: `❌ Role ${role.name} lebih tinggi atau sama dengan role bot saya!`,
+                      flags: 64
+                  });
+              }
 
-            try {
-                await member.roles.add(role);
-                
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Role Ditambahkan')
-                    .setColor('#2ecc71')
-                    .setDescription(`Role berhasil diberikan kepada member`)
-                    .addFields(
-                        { name: 'Member', value: `${user} (${user.tag})`, inline: true },
-                        { name: 'Role', value: `${role.name}`, inline: true },
-                        { name: 'Diberikan Oleh', value: `${interaction.user.tag}`, inline: true }
-                    )
-                    .setTimestamp();
+              try {
+                  await member.roles.add(role);
+                  
+                  const embed = new EmbedBuilder()
+                      .setTitle('✅ Role Ditambahkan')
+                      .setColor('#2ecc71')
+                      .setDescription(`Role berhasil diberikan kepada member`)
+                      .addFields(
+                          { name: 'Member', value: `${user} (${user.tag})`, inline: true },
+                          { name: 'Role', value: `${role.name}`, inline: true },
+                          { name: 'Diberikan Oleh', value: `${interaction.user.tag}`, inline: true }
+                      )
+                      .setTimestamp();
 
-                interaction.reply({ embeds: [embed] });
-                sendLog(interaction.guild, embed);
+                  await safeReply(interaction, { embeds: [embed], flags: 64 });
+                  sendLog(interaction.guild, embed);
 
-            } catch (error) {
-                console.error(error);
-                interaction.reply({
-                    content: `❌ Terjadi error: ${error.message}`,
-                    ephemeral: true
-                });
-            }
-        }
+              } catch (error) {
+                  console.error(error);
+                  await safeReply(interaction, {
+                      content: `❌ Terjadi error: ${error.message}`,
+                      flags: 64
+                  });
+              }
+          }
 
-        // COMMAND: /removerole
-        if (interaction.commandName === 'removerole') {
-            const user = interaction.options.getUser('user');
-            const role = interaction.options.getRole('role');
-            const member = await interaction.guild.members.fetch(user.id);
+          // COMMAND: /removerole
+          if (interaction.commandName === 'removerole') {
+              const user = interaction.options.getUser('user');
+              const role = interaction.options.getRole('role');
+              const member = await interaction.guild.members.fetch(user.id);
 
-            // Cek permission
-            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
-                return interaction.reply({
-                    content: '❌ Anda tidak memiliki izin ManageRoles!',
-                    ephemeral: true
-                });
-            }
+              // Cek permission
+              if (!interaction.member.permissions.has(PermissionFlagsBits.ManageRoles)) {
+                  return safeReply(interaction, {
+                      content: '❌ Anda tidak memiliki izin ManageRoles!',
+                      flags: 64
+                  });
+              }
 
-            // Cek apakah member memiliki role
-            if (!member.roles.cache.has(role.id)) {
-                return interaction.reply({
-                    content: `❌ ${user.tag} tidak memiliki role ${role.name}!`,
-                    ephemeral: true
-                });
-            }
+              // Cek apakah member memiliki role
+              if (!member.roles.cache.has(role.id)) {
+                  return safeReply(interaction, {
+                      content: `❌ ${user.tag} tidak memiliki role ${role.name}!`,
+                      flags: 64
+                  });
+              }
 
-            try {
-                await member.roles.remove(role);
-                
-                const embed = new EmbedBuilder()
-                    .setTitle('✅ Role Dihapus')
-                    .setColor('#e74c3c')
-                    .setDescription(`Role berhasil dihapus dari member`)
-                    .addFields(
-                        { name: 'Member', value: `${user} (${user.tag})`, inline: true },
-                        { name: 'Role', value: `${role.name}`, inline: true },
-                        { name: 'Dihapus Oleh', value: `${interaction.user.tag}`, inline: true }
-                    )
-                    .setTimestamp();
+              try {
+                  await member.roles.remove(role);
+                  
+                  const embed = new EmbedBuilder()
+                      .setTitle('✅ Role Dihapus')
+                      .setColor('#e74c3c')
+                      .setDescription(`Role berhasil dihapus dari member`)
+                      .addFields(
+                          { name: 'Member', value: `${user} (${user.tag})`, inline: true },
+                          { name: 'Role', value: `${role.name}`, inline: true },
+                          { name: 'Dihapus Oleh', value: `${interaction.user.tag}`, inline: true }
+                      )
+                      .setTimestamp();
 
-                interaction.reply({ embeds: [embed] });
-                sendLog(interaction.guild, embed);
+                  await safeReply(interaction, { embeds: [embed], flags: 64 });
+                  sendLog(interaction.guild, embed);
 
-            } catch (error) {
-                console.error(error);
-                interaction.reply({
-                    content: `❌ Terjadi error: ${error.message}`,
-                    ephemeral: true
-                });
-            }
-        }
-    }
+              } catch (error) {
+                  console.error(error);
+                  await safeReply(interaction, {
+                      content: `❌ Terjadi error: ${error.message}`,
+                      flags: 64
+                  });
+              }
+          }
+      }
 
-    if (interaction.isButton()) {
-        
-        // ============= TOMBOL: TRANSFER BANK =============
-        if (interaction.customId === 'pay_bank_info') {
-            const bankEmbed = new EmbedBuilder()
-                .setTitle('🏦 TRANSFER BANK')
-                .setColor(0x3498db)
-                .setDescription('Metode pembayaran melalui transfer bank ke rekening resmi kami.')
-                .addFields(
-                    {
-                        name: '📋 LANGKAH-LANGKAH:',
-                        value: `
+      if (interaction.isButton()) {
+          
+          // ============= TOMBOL: TRANSFER BANK =============
+          if (interaction.customId === 'pay_bank_info') {
+              const bankEmbed = new EmbedBuilder()
+                  .setTitle('🏦 TRANSFER BANK')
+                  .setColor(0x3498db)
+                  .setDescription('Metode pembayaran melalui transfer bank ke rekening resmi kami.')
+                  .addFields(
+                      {
+                          name: '📋 LANGKAH-LANGKAH:',
+                          value: `
 1️⃣ Catat nomor rekening bank di bawah
 2️⃣ Buka aplikasi perbankan (mobile/web)
 3️⃣ Pilih menu "Transfer Antar Bank"
@@ -471,12 +496,12 @@ client.on('interactionCreate', async (interaction) => {
 6️⃣ Konfirmasi dan selesaikan transaksi
 7️⃣ Screenshot bukti transfer (nomor referensi harus terlihat jelas)
 8️⃣ Kirim bukti ke admin di channel ini
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '💰 BANK BRI:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '💰 BANK BRI:',
+                          value: `
 **Nomor Rekening:**
 \`\`\`
 COMING SOON
@@ -485,12 +510,12 @@ COMING SOON
 \`\`\`
 COMING SOON
 \`\`\`
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '💰 BANK MANDIRI:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '💰 BANK MANDIRI:',
+                          value: `
 **Nomor Rekening:**
 \`\`\`
 COMING SOON
@@ -499,12 +524,12 @@ COMING SOON
 \`\`\`
 COMING SOON
 \`\`\`
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '✅ SYARAT & KETENTUAN:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '✅ SYARAT & KETENTUAN:',
+                          value: `
 ✓ Gunakan bank yang sama dengan rekening Anda
 ✓ Pastikan nominal transfer **TEPAT SESUAI** dengan yang diminta
 ✓ Jangan mengurangi atau menambah nominal tanpa izin
@@ -512,12 +537,12 @@ COMING SOON
 ✓ Bukti transfer harus mencakup nomor referensi & nominal
 ✓ Tunggu konfirmasi admin maksimal 1 jam
 ✓ Jika belum dikonfirmasi, hubungi admin
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '❌ YANG TIDAK BOLEH DILAKUKAN:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '❌ YANG TIDAK BOLEH DILAKUKAN:',
+                          value: `
 ✗ JANGAN transfer dari rekening orang lain
 ✗ JANGAN menambah/mengurangi nominal tanpa izin
 ✗ JANGAN lupa screenshot bukti transfer
@@ -525,29 +550,29 @@ COMING SOON
 ✗ JANGAN claim topup sebelum admin konfirmasi
 ✗ JANGAN buat tiket baru jika sudah ada transaksi pending
 ✗ JANGAN mencoba transfer berkali-kali dengan nominal berbeda
-                        `,
-                        inline: false
-                    }
-                )
-                .setFooter({ text: 'Community Store - Jika ada kendala, hubungi admin!' })
-                .setTimestamp();
+                          `,
+                          inline: false
+                      }
+                  )
+                  .setFooter({ text: 'Community Store - Jika ada kendala, hubungi admin!' })
+                  .setTimestamp();
 
-            await interaction.reply({ 
-                embeds: [bankEmbed],
-                flags: 0
-            });
-        }
+              await safeReply(interaction, { 
+                  embeds: [bankEmbed],
+                  flags: 0
+              });
+          }
 
-        // ============= TOMBOL: E-WALLET (GOPAY & DANA) =============
-        if (interaction.customId === 'pay_gopay_info') {
-            const ewalletEmbed = new EmbedBuilder()
-                .setTitle('📱 E-WALLET (GoPay & Dana)')
-                .setColor(0x1abc9c)
-                .setDescription('Metode pembayaran cepat melalui aplikasi e-wallet.')
-                .addFields(
-                    {
-                        name: '📋 LANGKAH-LANGKAH:',
-                        value: `
+          // ============= TOMBOL: E-WALLET (GOPAY & DANA) =============
+          if (interaction.customId === 'pay_gopay_info') {
+              const ewalletEmbed = new EmbedBuilder()
+                  .setTitle('📱 E-WALLET (GoPay & Dana)')
+                  .setColor(0x1abc9c)
+                  .setDescription('Metode pembayaran cepat melalui aplikasi e-wallet.')
+                  .addFields(
+                      {
+                          name: '📋 LANGKAH-LANGKAH:',
+                          value: `
 1️⃣ Buka aplikasi GoPay atau Dana di HP Anda
 2️⃣ Pilih menu "Kirim Uang" atau "Transfer"
 3️⃣ Masukkan nomor telepon tujuan (lihat di bawah)
@@ -556,12 +581,12 @@ COMING SOON
 6️⃣ Transfer akan langsung terproses
 7️⃣ Screenshot bukti transfer (tampilkan nomor pengirim & nominal)
 8️⃣ Kirim bukti ke admin di channel ini
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '💳 GOPAY:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '💳 GOPAY:',
+                          value: `
 **Nomor GoPay:**
 \`\`\`
 COMING SOON
@@ -570,12 +595,12 @@ COMING SOON
 \`\`\`
 COMING SOON
 \`\`\`
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '💳 DANA:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '💳 DANA:',
+                          value: `
 **Nomor Dana:**
 \`\`\`
 Coming Soon
@@ -584,22 +609,22 @@ Coming Soon
 \`\`\`
 Coming Soon
 \`\`\`
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '⚡ KECEPATAN TRANSAKSI:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '⚡ KECEPATAN TRANSAKSI:',
+                          value: `
 ✓ GoPay: Transfer instant (langsung terproses)
 ✓ Dana: Transfer instant (langsung terproses)
 ✓ Konfirmasi admin: 15-30 menit
 ✓ Tercepat dibanding bank transfer
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '✅ SYARAT & KETENTUAN:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '✅ SYARAT & KETENTUAN:',
+                          value: `
 ✓ Pastikan saldo e-wallet cukup sebelum transfer
 ✓ Nominal transfer harus **TEPAT SESUAI** pesanan
 ✓ Jangan kirim ke nomor lain selain nomor resmi kami
@@ -607,12 +632,12 @@ Coming Soon
 ✓ Bukti transfer harus jelas menampilkan nomor & nominal
 ✓ Konfirmasi dari admin akan dikirim via DM
 ✓ Tidak ada biaya admin untuk transfer e-wallet
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '❌ YANG TIDAK BOLEH DILAKUKAN:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '❌ YANG TIDAK BOLEH DILAKUKAN:',
+                          value: `
 ✗ JANGAN transfer ke nomor lain (hanya ke nomor resmi)
 ✗ JANGAN mengurangi nominal transfer
 ✗ JANGAN kirim ke akun/nomor yang tidak terdaftar
@@ -621,29 +646,29 @@ Coming Soon
 ✗ JANGAN dikirim via DM, gunakan channel topup resmi
 ✗ JANGAN claim topup sebelum admin konfirmasi
 ✗ JANGAN transfer berkali-kali dengan nominal sama
-                        `,
-                        inline: false
-                    }
-                )
-                .setFooter({ text: 'Merah Putih Roleplay x Ottibonynyo Mods!' })
-                .setTimestamp();
+                          `,
+                          inline: false
+                      }
+                  )
+                  .setFooter({ text: 'Merah Putih Roleplay x Ottibonynyo Mods!' })
+                  .setTimestamp();
 
-            await interaction.reply({ 
-                embeds: [ewalletEmbed],
-                flags: 0
-            });
-        }
+              await safeReply(interaction, { 
+                  embeds: [ewalletEmbed],
+                  flags: 0
+              });
+          }
 
-        // ============= TOMBOL: QRIS =============
-        if (interaction.customId === 'pay_qris_info') {
-            const qrisEmbed = new EmbedBuilder()
-                .setTitle('📲 PEMBAYARAN QRIS')
-                .setColor(0x9b59b6)
-                .setDescription('Metode pembayaran paling cepat & aman menggunakan QRIS.')
-                .addFields(
-                    {
-                        name: '📋 LANGKAH-LANGKAH:',
-                        value: `
+          // ============= TOMBOL: QRIS =============
+          if (interaction.customId === 'pay_qris_info') {
+              const qrisEmbed = new EmbedBuilder()
+                  .setTitle('📲 PEMBAYARAN QRIS')
+                  .setColor(0x9b59b6)
+                  .setDescription('Metode pembayaran paling cepat & aman menggunakan QRIS.')
+                  .addFields(
+                      {
+                          name: '📋 LANGKAH-LANGKAH:',
+                          value: `
 1️⃣ Lihat gambar QRIS di bawah (scroll ke bawah)
 2️⃣ Buka aplikasi e-wallet (GoPay, Dana, OVO, dll)
 3️⃣ Pilih menu "Scan QRIS" atau "Bayar dengan QRIS"
@@ -654,23 +679,23 @@ Coming Soon
 8️⃣ Pembayaran akan langsung terproses
 9️⃣ Screenshot bukti pembayaran
 🔟 Kirim bukti ke admin di channel ini
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '⚡ KEUNTUNGAN QRIS:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '⚡ KEUNTUNGAN QRIS:',
+                          value: `
 ✓ Paling cepat - instant pembayaran
 ✓ Bisa dari aplikasi e-wallet apapun
 ✓ Aman - gunakan kamera, tidak perlu nomor rekening
 ✓ Tidak ada biaya admin
 ✓ Cocok untuk semua jenis e-wallet (GoPay, Dana, OVO, LinkAja, dll)
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '✅ SYARAT & KETENTUAN:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '✅ SYARAT & KETENTUAN:',
+                          value: `
 ✓ Pastikan smartphone Anda terhubung internet
 ✓ Aplikasi e-wallet harus terinstall & aktif
 ✓ Nominal akan muncul otomatis saat scan, sesuaikan dengan pesanan
@@ -679,12 +704,12 @@ Coming Soon
 ✓ Pastikan kamera smartphone dalam kondisi baik
 ✓ Scan dari jarak 10-20cm untuk hasil optimal
 ✓ Tunggu notifikasi sukses sebelum menutup aplikasi
-                        `,
-                        inline: false
-                    },
-                    {
-                        name: '❌ YANG TIDAK BOLEH DILAKUKAN:',
-                        value: `
+                          `,
+                          inline: false
+                      },
+                      {
+                          name: '❌ YANG TIDAK BOLEH DILAKUKAN:',
+                          value: `
 ✗ JANGAN ubah nominal saat scan QRIS
 ✗ JANGAN screenshot QR code untuk dikirim ke orang lain
 ✗ JANGAN close aplikasi sebelum pembayaran selesai
@@ -695,21 +720,35 @@ Coming Soon
 ✗ JANGAN claim topup sebelum admin konfirmasi
 ✗ JANGAN scan berkali-kali (hanya 1x pembayaran)
 ✗ JANGAN share QRIS ke orang yang tidak berhak
-                        `,
-                        inline: false
-                    }
-                )
-                .setFooter({ text: 'Merah Putih Roleplay x Ottibonynyo Mods • Scan & Bayar dalam 30 detik!' })
-                .setTimestamp();
+                          `,
+                          inline: false
+                      }
+                  )
+                  .setFooter({ text: 'Merah Putih Roleplay x Ottibonynyo Mods • Scan & Bayar dalam 30 detik!' })
+                  .setTimestamp();
 
-            const qrisFile = new AttachmentBuilder(`./${CONFIG.QRIS_FILE_NAME}`);
-            
-            await interaction.reply({ 
-                embeds: [qrisEmbed],
-                files: [qrisFile],
-                flags: 0
-            });
+              const qrisFile = new AttachmentBuilder(`./${CONFIG.QRIS_FILE_NAME}`);
+              
+              await safeReply(interaction, { 
+                  embeds: [qrisEmbed],
+                  files: [qrisFile],
+                  flags: 0
+              });
+          }
+      }
+    } catch (err) {
+      // Menangani error tak terduga di event handler agar tidak menimbulkan unhandled 'error'
+      console.error('Error di interactionCreate handler:', err);
+      try {
+        if (interaction && !interaction.replied && !interaction.deferred) {
+          await safeReply(interaction, {
+            content: '❌ Terjadi error internal. Silakan coba lagi nanti.',
+            flags: 64
+          });
         }
+      } catch (e) {
+        console.error('Gagal mengirim fallback error message:', e);
+      }
     }
 });
 
