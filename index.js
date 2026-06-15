@@ -246,13 +246,6 @@ async function registerCommands() {
     }
 }
 
-// Helper function untuk send log
-function sendLog(guild, embed) {
-    if (!guild) return;
-    const logChannel = guild.channels.cache.get(CONFIG.LOG_CHANNEL);
-    if (logChannel) logChannel.send({ embeds: [embed] }).catch(err => console.error('Gagal mengirim log:', err));
-}
-
 client.once('ready', async () => {
     console.log(`[LOG] Berhasil masuk sebagai ${client.user.tag}`);
     await registerCommands();
@@ -261,7 +254,7 @@ client.once('ready', async () => {
     client.user.setPresence({
         activities: [
             { 
-                name: 'Merah Putih Roleplay', 
+                name: 'Ottibonynyo Mods', 
                 type: ActivityType.Playing 
             }
         ],
@@ -280,14 +273,14 @@ client.once('ready', async () => {
                 { name: '⚡ Latency', value: `\` ${client.ws.ping}ms \``, inline: true }
             )
             .setTimestamp();
-        logChannel.send({ embeds: [onlineEmbed] }).catch(err => console.error('Gagal kirim online log:', err));
+        logChannel.send({ embeds: [onlineEmbed] });
     }
 
     setInterval(() => {
         const announceChannel = client.channels.cache.get(CONFIG.ANNOUNCE_CHANNEL);
         if (announceChannel) {
             const text = RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
-            announceChannel.send(`📢 **Merah Putih Roleplay**\n\n${text}`).catch(err => console.error('Gagal kirim announce:', err));
+            announceChannel.send(`${text}`);
         }
     }, 3600000);
 });
@@ -312,10 +305,10 @@ client.on('interactionCreate', async (interaction) => {
 
 
             const paymentEmbed = new EmbedBuilder()
-                .setTitle('💳 METODE PEMBAYARAN RESMI MERAH PUTIH STORE')
+                .setTitle('💳 METODE PEMBAYARAN RESMI')
                 .setColor(0x00FF00)
                 .setDescription('Pilih metode pembayaran yang kamu inginkan:')
-                .setFooter({ text: 'Merah Putih Store • Harap lampirkan bukti transfer.' })
+                .setFooter({ text: 'Community Store • Harap lampirkan bukti transfer.' })
                 .setTimestamp();
 
             const row = new ActionRowBuilder()
@@ -519,7 +512,7 @@ COMING SOON
                         inline: false
                     }
                 )
-                .setFooter({ text: 'Merah Putih x Ottibonynyo Mods • Instant & Aman!' })
+                .setFooter({ text: 'Ottibonynyo Mods • Instant & Aman!' })
                 .setTimestamp();
 
             await interaction.reply({ 
@@ -593,7 +586,7 @@ COMING SOON
                         inline: false
                     }
                 )
-                .setFooter({ text: 'Merah Putih x Ottibonynyo Mods • Scan & Bayar dalam 30 detik!' })
+                .setFooter({ text: 'Ottibonynyo Mods • Scan & Bayar dalam 30 detik!' })
                 .setTimestamp();
 
             const qrisFile = new AttachmentBuilder(`./${CONFIG.QRIS_FILE_NAME}`);
@@ -611,7 +604,7 @@ COMING SOON
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
 
-    // ⛔ SKIP JIKA USER PUNYA SALAH SATU ROLE ADMIN
+    // ⛔ SKIP JIKA USER PUNYA ROLE ADMIN
     if (
         message.member &&
         CONFIG.ADMIN_ROLE_ID.some(roleID =>
@@ -620,7 +613,7 @@ client.on('messageCreate', async (message) => {
     ) {
         return;
     }
-    // ✅ INI HARUS ADA SEBELUM DIPAKAI
+
     const foundBadWord = BADWORDS.find(word => {
         const regex = new RegExp(`\\b${word}\\b`, 'i');
         return regex.test(message.content);
@@ -628,36 +621,15 @@ client.on('messageCreate', async (message) => {
     
     if (foundBadWord) {
         try {
-            // hapus pesan pelanggar
             await message.delete();
-    
-            // kirim warning
-            const warnMsg = await message.channel.send(
-                `Hey <@${message.author.id}>, astagfirullah tidak boleh mengetik kata kata kasar yah sayang!`
-            );
-    
-            // auto delete warning setelah 10 detik
-            setTimeout(() => {
-                warnMsg.delete().catch(() => {});
-            }, 10_000);
-    
-            // auto timeout 30 menit
-            if (message.member && message.guild) {
-                const timeoutDuration = 30 * 60 * 1000; // 30 menit
-    
-                await message.member.timeout(
-                    timeoutDuration,
-                    `Badword detected: ${foundBadWord}`
-                );
-            }
-    
+            return message.channel.send(`Hey ${message.author}, astagfirullah tidak boleh mengetik kata kata kasar yah sayang!`);
         } catch (error) {
-            console.error('[ERROR] Gagal memproses badword:', error);
+            console.error('[ERROR] Gagal menghapus pesan kasar:', error);
         }
-    
-        return;
+        return; 
     }
 
+    
 });
 
 client.login(CONFIG.TOKEN);
