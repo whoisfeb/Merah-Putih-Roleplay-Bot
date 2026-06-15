@@ -160,7 +160,6 @@ const RANDOM_MESSAGES = [
     "Siapkan dirimu, sejarah besar kota ini akan segera diukir olehmu.\n<@&1392382455876550799>",
     "Merah Putih Roleplay: Merah Putih is not an act, it's a habit.\n<@&1392382455876550799>"
 ];
-];
 
 // --- REGISTER SLASH COMMANDS ---
 const commands = [
