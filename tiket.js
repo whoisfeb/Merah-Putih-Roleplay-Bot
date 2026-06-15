@@ -26,7 +26,7 @@ const ALLOWED_ADMIN_ROLES = [
     '1392382455981412396' /// Role Assistan Developer
 ];
 
-client.once('ready', () => {
+client.once('clientReady', () => {
     console.log(`✅ Bot Tiket Pro Online: ${client.user.tag}`);
 });
 
