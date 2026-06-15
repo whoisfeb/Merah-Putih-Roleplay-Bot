@@ -105,34 +105,25 @@ client.on('messageCreate', async (message) => {
 client.on('interactionCreate', async (interaction) => {
     // --- LOGIKA SLASH COMMAND (/claimtopup, /closetopup) ---
     if (interaction.isChatInputCommand()) {
-        // Amankan defer/reply
         try {
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.deferReply({ flags: 64 });
-            }
-        } catch (err) {
-            console.error('Gagal deferReply di slash command tiket.js:', err);
-            try { if (!interaction.replied) await interaction.followUp({ content: '❌ Terjadi kesalahan. Coba lagi nanti.', flags: 64 }); } catch {}
-            return;
-        }
-
-        try {
-            // Filter keamanan 1: Cek Admin
+            // 1. Filter keamanan: Cek Admin
             const isAdmin = interaction.member && interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
             if (!isAdmin) {
                 return await safeReply(interaction, { content: '❌ Hanya Admin!', flags: 64 });
             }
 
-            // Filter keamanan 2: Hanya bisa digunakan di channel tiket
+            // 2. Filter keamanan: Hanya bisa digunakan di channel tiket
             if (!interaction.channel || !interaction.channel.name || !interaction.channel.name.startsWith('tiket-')) {
                 return await safeReply(interaction, { content: '❌ Command ini hanya bisa digunakan di dalam channel tiket!', flags: 64 });
             }
 
-            // 1. LOGIKA CLAIMTOPUP = SELESAI DENGAN LOG
+            // 3. LOGIKA CLAIMTOPUP (Perlu defer karena fetch messages bisa lambat)
             if (interaction.commandName === 'claimtopup') {
+                await interaction.deferReply({ flags: 64 }); // Defer hanya di sini
+                
                 const reason = interaction.options.getString('reason') || 'Tidak ada alasan';
-
                 const messages = await interaction.channel.messages.fetch({ limit: 100 });
+                
                 let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan: ${reason}\n----------------------------------------\n\n`;
                 messages.reverse().forEach(m => logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`);
 
@@ -146,21 +137,13 @@ client.on('interactionCreate', async (interaction) => {
                     }).catch(err => console.error('Gagal kirim log ke logChannel:', err));
                 }
 
-                try {
-                    await interaction.editReply({ content: '⌛ Memproses log dan menghapus channel...' });
-                } catch (e) {
-                    console.error('Gagal editReply setelah claimtopup:', e);
-                }
+                await interaction.editReply({ content: '⌛ Memproses log dan menghapus channel...' });
                 setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
             }
 
-            // 2. LOGIKA CLOSETOPUP = TUTUP TANPA LOG
+            // 4. LOGIKA CLOSETOPUP
             if (interaction.commandName === 'closetopup') {
-                try {
-                    await interaction.editReply({ content: '⚠️ Menutup tiket tanpa log...' });
-                } catch (e) {
-                    console.error('Gagal editReply closetopup:', e);
-                }
+                await interaction.reply({ content: '⚠️ Menutup tiket tanpa log...', flags: 64 });
                 setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
             }
 
@@ -173,10 +156,9 @@ client.on('interactionCreate', async (interaction) => {
                     await safeReply(interaction, { content: '❌ Terjadi kesalahan saat memproses perintah.', flags: 64 });
                 }
             } catch (e) {
-                console.error('Gagal kirim fallback error pada slash command:', e);
+                console.error('Gagal kirim fallback error:', e);
             }
         }
-
         return;
     }
 
