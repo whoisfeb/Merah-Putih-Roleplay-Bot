@@ -1,5 +1,7 @@
-  "name": "Merah Putih Bot",
-  "description": "Sistem Bot Merah Puti",
+{
+  "name": "merah-putih-bot",
+  "version": "1.0.0",
+  "description": "Sistem Bot Merah Putih",
   "main": "index.js",
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
@@ -11,3 +13,4 @@
     "start": "node -e \"const { spawn } = require('child_process'); [ 'index.js', 'tiket.js', 'tiket-unban.js', 'anti-link.js', 'welcomer.js', 'logs-discord.js', 'open-admin.js' ].forEach(f => spawn('node', [f], { stdio: 'inherit' }))\"",
     "build": "echo 'No build step required'"
   }
+}
