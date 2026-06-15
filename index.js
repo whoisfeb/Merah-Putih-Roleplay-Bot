@@ -1,3 +1,4 @@
+const fs = require('fs');
 const { 
     Client, 
     GatewayIntentBits, 
@@ -159,6 +160,7 @@ const RANDOM_MESSAGES = [
     "Siapkan dirimu, sejarah besar kota ini akan segera diukir olehmu.\n<@&1392382455876550799>",
     "Merah Putih Roleplay: Merah Putih is not an act, it's a habit.\n<@&1392382455876550799>"
 ];
+];
 
 // --- REGISTER SLASH COMMANDS ---
 const commands = [
@@ -206,20 +208,18 @@ const commands = [
             },
         ],
     },
-    // Tambahkan perintah addticket di bawah ini:
     {
         name: 'addticket',
         description: 'Menambahkan pengguna ke dalam tiket unban ini',
         options: [
             {
                 name: 'target',
-                type: 6, // Type 6 artinya USER option
+                type: 6,
                 description: 'Pengguna yang ingin dimasukkan ke tiket',
                 required: true,
             },
         ],
     },
-
     {
         name: 'claimtopup',
         description: 'Claim tiket topup dengan alasan',
@@ -231,7 +231,6 @@ const commands = [
         options: [{ name: 'reason', type: 3, description: 'Alasan penutupan', required: true }]
     }
 ];
-
 
 const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
 
@@ -282,16 +281,30 @@ client.once('ready', async () => {
                 { name: '⚡ Latency', value: `\` ${client.ws.ping}ms \``, inline: true }
             )
             .setTimestamp();
-        logChannel.send({ embeds: [onlineEmbed] });
+        logChannel.send({ embeds: [onlineEmbed] }).catch(err => console.error('Gagal kirim online log:', err));
     }
 
     setInterval(() => {
         const announceChannel = client.channels.cache.get(CONFIG.ANNOUNCE_CHANNEL);
         if (announceChannel) {
             const text = RANDOM_MESSAGES[Math.floor(Math.random() * RANDOM_MESSAGES.length)];
-            announceChannel.send(`📢 **Merah Putih Roleplay**\n\n${text}`);
+            announceChannel.send(`📢 **Merah Putih Roleplay**\n\n${text}`).catch(err => console.error('Gagal kirim announce:', err));
         }
     }, 3600000);
+});
+
+// Global error handlers agar proses tidak crash karena unhandled errors
+process.on('unhandledRejection', (err) => {
+    console.error('UnhandledRejection:', err);
+});
+process.on('uncaughtException', (err) => {
+    console.error('UncaughtException:', err);
+});
+client.on('error', (err) => {
+    console.error('Client error:', err);
+});
+client.on('shardError', (err) => {
+    console.error('Shard error:', err);
 });
 
 // Helper: aman memanggil reply / followUp tanpa crash saat interaction sudah dibalas/expired
@@ -309,8 +322,6 @@ async function safeReply(interaction, options = {}) {
       if (!interaction.replied && !interaction.deferred) {
         await interaction.deferReply({ flags: 64 });
       }
-      // Jika options mengandung embeds atau files, editReply mungkin tidak mendukung semua kombinasi,
-      // tapi kita kirim pesan teks fallback agar pengguna tahu ada error.
       await interaction.editReply({ content: options.content || 'Terjadi error saat mengirim balasan.' });
     } catch (e) {
       console.error('safeReply fallback gagal:', e);
@@ -325,7 +336,7 @@ client.on('interactionCreate', async (interaction) => {
       if (interaction.isChatInputCommand()) {
           if (interaction.commandName === 'payment') {
               
-                          // CEK ROLE ID ADMIN
+              // CEK ROLE ID ADMIN
               const hasAdminRole = interaction.member.roles.cache.some(role => 
                   CONFIG.ADMIN_ROLE_ID.includes(role.id)
               );
@@ -336,7 +347,6 @@ client.on('interactionCreate', async (interaction) => {
                       flags: 64
                   });
               }
-
 
               const paymentEmbed = new EmbedBuilder()
                   .setTitle('💳 METODE PEMBAYARAN RESMI')
@@ -727,13 +737,23 @@ Coming Soon
                   .setFooter({ text: 'Merah Putih Roleplay x Ottibonynyo Mods • Scan & Bayar dalam 30 detik!' })
                   .setTimestamp();
 
-              const qrisFile = new AttachmentBuilder(`./${CONFIG.QRIS_FILE_NAME}`);
+              // Gunakan stream agar tidak memakai experimental buffer.File
+              const qrisFilePath = `./${CONFIG.QRIS_FILE_NAME}`;
+              let qrisFile;
+              try {
+                if (fs.existsSync(qrisFilePath)) {
+                  qrisFile = new AttachmentBuilder(fs.createReadStream(qrisFilePath));
+                } else {
+                  console.warn('QRIS file not found:', qrisFilePath);
+                }
+              } catch (e) {
+                console.error('Gagal baca QRIS file:', e);
+              }
               
-              await safeReply(interaction, { 
-                  embeds: [qrisEmbed],
-                  files: [qrisFile],
-                  flags: 0
-              });
+              const replyOptions = { embeds: [qrisEmbed], flags: 0 };
+              if (qrisFile) replyOptions.files = [qrisFile];
+
+              await safeReply(interaction, replyOptions);
           }
       }
     } catch (err) {
