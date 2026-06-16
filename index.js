@@ -286,6 +286,10 @@ client.once('ready', async () => {
             announceChannel.send(`${text}`);
         }
     }, 3600000);
+
+    // ===== INITIALIZE HANDLERS =====
+    ticketHandler(client);
+    // ===============================
 });
 
 client.on('interactionCreate', async (interaction) => {
@@ -294,13 +298,7 @@ client.on('interactionCreate', async (interaction) => {
     const paymentHandled = await paymentHandler(interaction, CONFIG);
     if (paymentHandled) return;
 
-    // Ticket Handler
-    const ticketHandled = await ticketHandler(interaction, CONFIG);
-    if (ticketHandled) return;
-
 });
-
-
 
 // --- EVENT: MESSAGE MONITORING (ANTI-BADWORD & AUTO RESPONSE) ---
 client.on('messageCreate', async (message) => {
