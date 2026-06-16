@@ -10,7 +10,7 @@
     "axios": "^1.6.0"
   },
   "scripts": {
-    "start": "index.js",
+    "start": "node index.js",
     "build": "echo 'No build step required'"
   }
 }
