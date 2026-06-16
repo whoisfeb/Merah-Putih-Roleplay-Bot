@@ -24,8 +24,9 @@ const client = new Client({
     ]
 });
 
-const paymentHandler = require('./handlers/payment');
 const ticketHandler = require('./handlers/tiket');
+const unbanHandler = require('./handlers/tiket-unban');
+const paymentHandler = require('./handlers/payment');
 
 // --- KONFIGURASI ---
 const CONFIG = {
@@ -289,6 +290,7 @@ client.once('ready', async () => {
 
     // ===== INITIALIZE HANDLERS =====
     ticketHandler(client);
+    unbanHandler(client);
     // ===============================
 });
 
