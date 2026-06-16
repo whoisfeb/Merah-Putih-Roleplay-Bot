@@ -99,7 +99,7 @@ if (message) {
     }
 
 } 
-});
+
 
 client.on('interactionCreate', async (interaction) => {
 
