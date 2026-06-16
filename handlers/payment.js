@@ -20,25 +20,21 @@ module.exports = async (interaction, CONFIG) => {
             interaction.commandName === 'payment'
         ) {
 
+            // ✅ DEFER DULU (PENTING - SEBELUM APAPUN)
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.deferReply({ flags: 64 });
+            }
+
+            // BARU CEK ROLE
             const hasAdminRole = interaction.member.roles.cache.some(role =>
                 CONFIG.ADMIN_ROLE_ID.includes(role.id)
             );
 
             if (!hasAdminRole) {
-
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({
-                        content: '❌ Kamu tidak memiliki izin untuk menggunakan command ini.',
-                        flags: 64
-                    });
-                }
-
-                return true;
+                return await interaction.editReply({
+                    content: '❌ Kamu tidak memiliki izin untuk menggunakan command ini.',
+                });
             }
-
-            await interaction.deferReply({
-                flags: 64
-            });
 
             const paymentEmbed = new EmbedBuilder()
                 .setTitle('💳 METODE PEMBAYARAN RESMI')
@@ -384,6 +380,12 @@ COMING SOON
                 await interaction.reply({
                     content: '❌ Terjadi kesalahan saat memproses payment.',
                     flags: 64
+                });
+
+            } else {
+
+                await interaction.editReply({
+                    content: '❌ Terjadi kesalahan saat memproses payment.'
                 });
 
             }
