@@ -50,34 +50,55 @@ async function safeReply(interaction, options = {}) {
 }
 
 // --- PANEL UTAMA SETUP ---
-client.on('messageCreate', async (message) => {
-    if (message.content === '!setup-tiket' && message.member && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+module.exports = (client, CONFIG) => {
+
+// --- PANEL UTAMA SETUP ---
+module.exports = async (client, interaction, message) => {
+    // PANEL SETUP TIKET
+if (message) {
+
+    if (
+        message.content === '!setup-tiket' &&
+        message.member.permissions.has(PermissionsBitField.Flags.Administrator)
+    ) {
+
         const embed = new EmbedBuilder()
             .setTitle('🛒 Merah Putih Roleplay - Tiket Layanan')
-            .setDescription('Silakan klik tombol di bawah untuk memulai proses Top Up atau melihat aturan.')
+            .setDescription(
+                'Silakan klik tombol di bawah untuk memulai proses Top Up atau melihat aturan.'
+            )
             .setColor('#5865F2')
-            .setFooter({ text: 'Ottibonynyo Mods | Merah Putih' });
+            .setFooter({
+                text: 'Ottibonynyo Mods | Merah Putih'
+            });
 
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId('buka_modal')
-                .setLabel('Buka Tiket')
-                .setEmoji('🎫')
-                .setStyle(ButtonStyle.Primary),
-            new ButtonBuilder()
-                .setCustomId('lihat_rules')
-                .setLabel('Rules Top Up')
-                .setEmoji('📜')
-                .setStyle(ButtonStyle.Secondary)
-        );
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('buka_modal')
+                    .setLabel('Buka Tiket')
+                    .setEmoji('🎫')
+                    .setStyle(ButtonStyle.Primary),
 
-        try {
-            await message.channel.send({ embeds: [embed], components: [row] });
-            if (message.deletable) await message.delete().catch(() => {});
-        } catch (err) {
-            console.error('Gagal mengirim setup tiket:', err);
-        }
+                new ButtonBuilder()
+                    .setCustomId('lihat_rules')
+                    .setLabel('Rules Top Up')
+                    .setEmoji('📜')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        await message.channel.send({
+            embeds: [embed],
+            components: [row]
+        });
+
+        if (message.deletable)
+            await message.delete().catch(() => {});
+
+        return;
     }
+
+} 
 });
 
 client.on('interactionCreate', async (interaction) => {
