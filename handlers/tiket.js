@@ -1,8 +1,4 @@
-require('dotenv').config();
-const fs = require('fs');
 const {
-    Client,
-    GatewayIntentBits,
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
@@ -16,15 +12,7 @@ const {
     AttachmentBuilder
 } = require('discord.js');
 
-const client = new Client({
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
-});
 
-const TOKEN = process.env.DISCORD_TOKEN;
 const CATEGORY_ID = '1392382458615435270';
 const LOG_CHANNEL_ID = '1502910714023645224'; 
 
@@ -37,17 +25,7 @@ const ALLOWED_ADMIN_ROLES = [
     '1392382455981412396'
 ];
 
-// Global error handlers agar proses tidak langsung crash
-process.on('unhandledRejection', (err) => console.error('UnhandledRejection (tiket.js):', err));
-process.on('uncaughtException', (err) => console.error('UncaughtException (tiket.js):', err));
-client.on('error', (err) => console.error('Client error (tiket.js):', err));
-client.on('shardError', (err) => console.error('Shard error (tiket.js):', err));
 
-// Jika versi discord.js Anda menggunakan event 'clientReady', ganti kembali sesuai versi.
-// Umumnya 'ready' bekerja di discord.js v14.
-client.once('ready', () => {
-    console.log(`✅ Bot Tiket Pro Online: ${client.user.tag}`);
-});
 
 // Helper aman untuk membalas interaksi
 async function safeReply(interaction, options = {}) {
@@ -576,4 +554,4 @@ client.on('interactionCreate', async (interaction) => {
 
 });
 
-client.login(TOKEN);
+};

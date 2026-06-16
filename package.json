@@ -10,7 +10,7 @@
     "axios": "^1.6.0"
   },
   "scripts": {
-    "start": "node -e \"const { spawn } = require('child_process'); [ 'index.js', 'tiket.js', 'tiket-unban.js', 'anti-link.js', 'welcomer.js', 'logs-discord.js', 'open-admin.js' ].forEach(f => spawn('node', [f], { stdio: 'inherit' }))\"",
+    "start": "index.js",
     "build": "echo 'No build step required'"
   }
 }

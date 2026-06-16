@@ -25,6 +25,7 @@ const client = new Client({
 });
 
 const paymentHandler = require('./handlers/payment');
+const ticketHandler = require('./handlers/tiket');
 
 // --- KONFIGURASI ---
 const CONFIG = {
@@ -289,7 +290,13 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async (interaction) => {
 
-    await paymentHandler(interaction, CONFIG);
+    // Payment Handler
+    const paymentHandled = await paymentHandler(interaction, CONFIG);
+    if (paymentHandled) return;
+
+    // Ticket Handler
+    const ticketHandled = await ticketHandler(interaction, CONFIG);
+    if (ticketHandled) return;
 
 });
 
