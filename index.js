@@ -36,6 +36,7 @@ const unbanHandler = require('./handlers/tiket-unban');
 const paymentHandler = require('./handlers/payment');
 const { setupLogsHandler } = require('./handlers/logs-discord');
 const { setupWelcomerHandler } = require('./handlers/welcomer');
+const { setupCommandsHandler } = require('./handlers/commands');
 
 // --- CONFIG ---
 const CONFIG = {
@@ -245,6 +246,7 @@ client.once('ready', async () => {
     // ==========================================
     // SETUP ALL HANDLERS
     // ==========================================
+    setupCommandsHandler(client);
     setupLogsHandler(client);    
     setupWelcomerHandler(client);
     ticketHandler(client);
@@ -266,6 +268,7 @@ client.once('ready', async () => {
 client.on('messageCreate', async (message) => {
     await antiLinkHandler(message, CONFIG);
     await messageMonitorHandler(message, CONFIG);
+
 });
 
 client.on('interactionCreate', async (interaction) => {
