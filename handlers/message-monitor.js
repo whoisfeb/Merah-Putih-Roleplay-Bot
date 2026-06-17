@@ -25,9 +25,23 @@ module.exports = async (message, CONFIG) => {
     if (foundBadWord) {
         try {
             await message.delete();
-            return message.channel.send(`Hey ${message.author}, astagfirullah tidak boleh mengetik kata kata kasar yah sayang!`);
+            
+            // Simpan pesan bot ke dalam variabel
+            const sentMessage = await message.channel.send(
+                `Hey ${message.author}, astagfirullah tidak boleh mengetik kata kata kasar yah sayang!`
+            );
+
+            // Hapus pesan bot setelah 10.000 milidetik (10 detik)
+            setTimeout(async () => {
+                try {
+                    await sentMessage.delete();
+                } catch (err) {
+                    console.error('[ERROR] Gagal menghapus pesan bot:', err);
+                }
+            }, 10000);
+
         } catch (error) {
-            console.error('[ERROR] Gagal menghapus pesan kasar:', error);
+            console.error('[ERROR] Gagal memproses kata kasar:', error);
         }
         return; 
     }
