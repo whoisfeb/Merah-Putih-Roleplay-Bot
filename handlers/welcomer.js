@@ -43,7 +43,8 @@ async function setupWelcomerHandler(client) {
             .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
             .setDescription(
                 `Hey, Welcome <@${member.id}>\n\n` +
-                `・ Silahkan ambil role anda di <#1392382456589717559>\n` +
+                `・ Silahkan ambil role anda di <#1392382456589717559>\n\n`
+                `・ Jika <#1392382456589717559> tidak muncul silahkan klik <#1514831379941294190>\n\n` +
                 `・ Buat akun/UCP di channel <#1392382456589717561>\n\n` +
                 `**Member ke:** #${totalMember}`
             )
