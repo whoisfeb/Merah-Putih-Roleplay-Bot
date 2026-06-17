@@ -5,13 +5,7 @@ const {
     EmbedBuilder, 
     ActivityType, 
     REST, 
-    Routes,
-    AttachmentBuilder,
-    ActionRowBuilder,
-    ButtonBuilder,
-    ButtonStyle,
-    PermissionFlagsBits,
-    AuditLogEvent
+    Routes
 } = require('discord.js');
 
 const client = new Client({
@@ -24,11 +18,14 @@ const client = new Client({
     ]
 });
 
+// Import Handlers
+const antiLinkHandler = require('./handlers/anti-link');
+const messageMonitorHandler = require('./handlers/message-monitor');
 const ticketHandler = require('./handlers/tiket');
 const unbanHandler = require('./handlers/tiket-unban');
 const paymentHandler = require('./handlers/payment');
 
-// --- KONFIGURASI ---
+// --- CONFIG ---
 const CONFIG = {
     TOKEN: process.env.DISCORD_TOKEN,
     CLIENT_ID: '1496812134141526096', 
@@ -49,15 +46,8 @@ const CONFIG = {
     ]
 };
 
-// --- DAFTAR KATA KASAR ---
-const BADWORDS = [
-  'free', 'tolol', 'goblok', 'bego', 'pepek', 'dongo', 'tai', 'kontol', 
-  'bio', 'sexcam', 'entot', 'ngentot', 'join', 'invite', 'anjing', 
-  'babi', 'memek', 'ngewe', 'ewe', 'lonte', 'pler', 'bgst', 'bangsat'
-];
-
 const RANDOM_MESSAGES = [
-    "Ayo Login dan Ramaikan Merah Putih Roleplay\n<@&1392382455876550799>!",
+     "Ayo Login dan Ramaikan Merah Putih Roleplay\n<@&1392382455876550799>!",
     "Halo apakabar semua ap akah kalian sehat sehat saja?\nAlhamdulillah jika anda sehat sehat saja\nAyo kita ramaikan Merah Putih Roleplay jika anda menemukan bug silahkan laporkan ke <#1496809960867106826>, namun jika anda melihat player yang melakukan kesalahan silahkan laporkan di <#1496810065158471751>\n<@&1392382455876550799>",
     "Merah Putih Roleplay adalah server terbaik sepanjang masa\n Jangan lupa share link discord Merah Putih Roleplay ke teman, keluarga atau bahkan grup sekolah kalian ya\nhttps://discord.gg\n<@&1392382455876550799>.",
     "Halo <@&1392382455876550799> , seru ga bermain Merah Putih Roleplay? apa? anda baru join? kalau baru join langsung <#1392382456589717561>",
@@ -165,63 +155,30 @@ const RANDOM_MESSAGES = [
     "Merah Putih Roleplay: Merah Putih is not an act, it's a habit.\n<@&1392382455876550799>"
 ];
 
-// --- REGISTER SLASH COMMANDS ---
+// --- REGISTER COMMANDS ---
 const commands = [
-    {
-        name: 'payment',
-        description: 'Menampilkan informasi metode pembayaran resmi store',
-    },
-    {
-        name: 'open-admin',
-        description: 'Memunculkan tombol pendaftaran admin',
-    },
+    { name: 'payment', description: 'Menampilkan informasi metode pembayaran resmi store' },
+    { name: 'open-admin', description: 'Memunculkan tombol pendaftaran admin' },
     {
         name: 'addrole',
         description: 'Memberikan role kepada seorang member',
         options: [
-            {
-                name: 'user',
-                type: 6,
-                description: 'Member yang akan diberi role',
-                required: true,
-            },
-            {
-                name: 'role',
-                type: 9,
-                description: 'Role yang akan diberikan',
-                required: true,
-            },
+            { name: 'user', type: 6, description: 'Member yang akan diberi role', required: true },
+            { name: 'role', type: 9, description: 'Role yang akan diberikan', required: true },
         ],
     },
     {
         name: 'removerole',
         description: 'Menghapus role dari seorang member',
         options: [
-            {
-                name: 'user',
-                type: 6,
-                description: 'Member yang akan dihapus rolenya',
-                required: true,
-            },
-            {
-                name: 'role',
-                type: 9,
-                description: 'Role yang akan dihapus',
-                required: true,
-            },
+            { name: 'user', type: 6, description: 'Member yang akan dihapus rolenya', required: true },
+            { name: 'role', type: 9, description: 'Role yang akan dihapus', required: true },
         ],
     },
     {
         name: 'addticket',
         description: 'Menambahkan pengguna ke dalam tiket unban ini',
-        options: [
-            {
-                name: 'target',
-                type: 6,
-                description: 'Pengguna yang ingin dimasukkan ke tiket',
-                required: true,
-            },
-        ],
+        options: [{ name: 'target', type: 6, description: 'Pengguna yang ingin dimasukkan ke tiket', required: true }],
     },
     {
         name: 'claimtopup',
@@ -254,18 +211,11 @@ client.once('ready', async () => {
     console.log(`[LOG] Berhasil masuk sebagai ${client.user.tag}`);
     await registerCommands();
 
-    // ========== SET STATUS BOT ==========
     client.user.setPresence({
-        activities: [
-            { 
-                name: 'Ottibonynyo Mods', 
-                type: ActivityType.Playing 
-            }
-        ],
+        activities: [{ name: 'Ottibonynyo Mods', type: ActivityType.Playing }],
         status: 'online',
     });
     console.log('[LOG] Status bot telah diubah menjadi ONLINE');
-    // ====================================
 
     const logChannel = client.channels.cache.get(CONFIG.LOG_CHANNEL);
     if (logChannel) {
@@ -288,50 +238,19 @@ client.once('ready', async () => {
         }
     }, 3600000);
 
-    // ===== INITIALIZE HANDLERS =====
     ticketHandler(client);
     unbanHandler(client);
-    // ===============================
+});
+
+// Event Listeners
+client.on('messageCreate', async (message) => {
+    await antiLinkHandler(message, CONFIG);
+    await messageMonitorHandler(message, CONFIG);
 });
 
 client.on('interactionCreate', async (interaction) => {
-
-    // Payment Handler
     const paymentHandled = await paymentHandler(interaction, CONFIG);
     if (paymentHandled) return;
-
-});
-
-// --- EVENT: MESSAGE MONITORING (ANTI-BADWORD & AUTO RESPONSE) ---
-client.on('messageCreate', async (message) => {
-    if (message.author.bot) return;
-
-    // ⛔ SKIP JIKA USER PUNYA ROLE ADMIN
-    if (
-        message.member &&
-        CONFIG.ADMIN_ROLE_ID.some(roleID =>
-            message.member.roles.cache.has(roleID)
-        )
-    ) {
-        return;
-    }
-
-    const foundBadWord = BADWORDS.find(word => {
-        const regex = new RegExp(`\\b${word}\\b`, 'i');
-        return regex.test(message.content);
-    });
-    
-    if (foundBadWord) {
-        try {
-            await message.delete();
-            return message.channel.send(`Hey ${message.author}, astagfirullah tidak boleh mengetik kata kata kasar yah sayang!`);
-        } catch (error) {
-            console.error('[ERROR] Gagal menghapus pesan kasar:', error);
-        }
-        return; 
-    }
-
-    
 });
 
 client.login(CONFIG.TOKEN);
