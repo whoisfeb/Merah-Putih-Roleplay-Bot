@@ -5,7 +5,8 @@ const {
     EmbedBuilder, 
     ActivityType, 
     REST, 
-    Routes
+    Routes,
+    Partials
 } = require('discord.js');
 
 const client = new Client({
@@ -14,7 +15,16 @@ const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers,
-        GatewayIntentBits.GuildModeration
+        GatewayIntentBits.GuildModeration,
+        GatewayIntentBits.GuildVoiceStates,
+        GatewayIntentBits.GuildPresences
+    ],
+    partials: [
+        Partials.Message, 
+        Partials.Channel, 
+        Partials.Reaction, 
+        Partials.GuildMember, 
+        Partials.User
     ]
 });
 
@@ -24,6 +34,8 @@ const messageMonitorHandler = require('./handlers/message-monitor');
 const ticketHandler = require('./handlers/tiket');
 const unbanHandler = require('./handlers/tiket-unban');
 const paymentHandler = require('./handlers/payment');
+const { setupLogsHandler } = require('./handlers/logs-discord');
+const { setupWelcomerHandler } = require('./handlers/welcomer');
 
 // --- CONFIG ---
 const CONFIG = {
@@ -47,7 +59,7 @@ const CONFIG = {
 };
 
 const RANDOM_MESSAGES = [
-     "Ayo Login dan Ramaikan Merah Putih Roleplay\n<@&1392382455876550799>!",
+    "Ayo Login dan Ramaikan Merah Putih Roleplay\n<@&1392382455876550799>!",
     "Halo apakabar semua ap akah kalian sehat sehat saja?\nAlhamdulillah jika anda sehat sehat saja\nAyo kita ramaikan Merah Putih Roleplay jika anda menemukan bug silahkan laporkan ke <#1496809960867106826>, namun jika anda melihat player yang melakukan kesalahan silahkan laporkan di <#1496810065158471751>\n<@&1392382455876550799>",
     "Merah Putih Roleplay adalah server terbaik sepanjang masa\n Jangan lupa share link discord Merah Putih Roleplay ke teman, keluarga atau bahkan grup sekolah kalian ya\nhttps://discord.gg\n<@&1392382455876550799>.",
     "Halo <@&1392382455876550799> , seru ga bermain Merah Putih Roleplay? apa? anda baru join? kalau baru join langsung <#1392382456589717561>",
@@ -230,6 +242,14 @@ client.once('ready', async () => {
         logChannel.send({ embeds: [onlineEmbed] });
     }
 
+    // ==========================================
+    // SETUP ALL HANDLERS
+    // ==========================================
+    setupLogsHandler(client);    
+    setupWelcomerHandler(client);
+    ticketHandler(client);
+    unbanHandler(client);
+
     setInterval(() => {
         const announceChannel = client.channels.cache.get(CONFIG.ANNOUNCE_CHANNEL);
         if (announceChannel) {
@@ -237,12 +257,12 @@ client.once('ready', async () => {
             announceChannel.send(`${text}`);
         }
     }, 3600000);
-
-    ticketHandler(client);
-    unbanHandler(client);
 });
 
-// Event Listeners
+// ==========================================
+// EVENT LISTENERS
+// ==========================================
+
 client.on('messageCreate', async (message) => {
     await antiLinkHandler(message, CONFIG);
     await messageMonitorHandler(message, CONFIG);
