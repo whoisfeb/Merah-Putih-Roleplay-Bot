@@ -108,18 +108,71 @@ function setupAutoKarantinaHandler(client) {
             } catch (error) {
                 console.error('[AUTO-KARANTINA] User tidak ditemukan:', error.message);
                 await message.reply({
-                    content: `❌ User dengan ID ${karantinaData.user} tidak ditemukan di server!`,
-                    ephemeral: true
+                    content: `❌ User dengan ID ${karantinaData.user} tidak ditemukan di server!`
                 });
                 return;
             }
 
             if (!targetMember) {
                 await message.reply({
-                    content: `❌ User tidak ditemukan!`,
-                    ephemeral: true
+                    content: `❌ User tidak ditemukan!`
                 });
                 return;
+            }
+
+            // ============================================
+            // SIMPAN NAMA LAMA (untuk ditampilkan di embed)
+            // ============================================
+            const currentDisplayName = targetMember.nickname || targetMember.user.username;
+            console.log(`[AUTO-KARANTINA] Nama saat ini: ${currentDisplayName}`);
+
+            // Simpan nama lama yang akan ditampilkan di embed
+            const oldNickname = currentDisplayName;
+
+            // ============================================
+            // NORMALISASI / EKSTRAKSI BASE NAME
+            // - Jika ada '|' ambil bagian setelah '|' terakhir (kecuali prefix 'KARANTINA')
+            // - Jika sudah ada prefix 'KARANTINA' (case-insensitive), ambil sisanya tapi tetap normalisasi format
+            // ============================================
+            let baseName = currentDisplayName;
+            const parts = currentDisplayName.split('|').map(p => p.trim()).filter(p => p.length > 0);
+
+            if (parts.length > 1) {
+                // Jika bagian pertama adalah KARANTINA -> hapus prefix KARANTINA dan gunakan sisanya
+                if (parts[0].toUpperCase() === 'KARANTINA') {
+                    baseName = parts.slice(1).join(' | ');
+                } else {
+                    // Ambil bagian setelah '|' terakhir (misal "MPRP | NAMA" -> "NAMA")
+                    baseName = parts[parts.length - 1];
+                }
+            } else {
+                baseName = parts[0];
+            }
+
+            if (!baseName || baseName.trim().length === 0) {
+                baseName = targetMember.user.username; // fallback ke username akun
+            }
+            baseName = baseName.trim();
+
+            // Buat nickname baru dan pastikan panjang tidak melebihi 32 karakter (batas Discord)
+            const prefix = 'KARANTINA | ';
+            let newNickname = `${prefix}${baseName}`;
+            if (newNickname.length > 32) {
+                const allowed = 32 - prefix.length; // sisa untuk baseName
+                baseName = baseName.slice(0, allowed);
+                newNickname = `${prefix}${baseName}`;
+            }
+
+            // Jika sudah sama (setelah normalisasi), tidak perlu setNickname ulang
+            if (currentDisplayName === newNickname) {
+                console.log('[AUTO-KARANTINA] Nickname sudah sesuai format karantina, tidak diubah.');
+            } else {
+                try {
+                    await targetMember.setNickname(newNickname);
+                    console.log(`[AUTO-KARANTINA] Nama diubah menjadi: ${newNickname}`);
+                } catch (error) {
+                    console.error('[AUTO-KARANTINA] Gagal mengubah nickname:', error.message);
+                }
             }
 
             // ============================================
@@ -166,6 +219,8 @@ function setupAutoKarantinaHandler(client) {
                 .addFields(
                     { name: '👤 User', value: `${targetMember.user.tag} (${karantinaData.user})`, inline: true },
                     { name: '🏢 Faction', value: karantinaData.faction, inline: true },
+                    { name: '📝 Nama Lama', value: oldNickname, inline: false },
+                    { name: '✏️ Nama Baru', value: newNickname, inline: false },
                     { name: '⏱️ Waktu Karantina', value: karantinaData.waktuKarantina, inline: false },
                     { name: '❌ Role Dihapus', value: rolesRemoved.length > 0 ? rolesRemoved.join(', ') : 'Tidak ada', inline: false },
                     { name: '✅ Role Diberikan', value: karantinaRole ? karantinaRole.name : 'Tidak ada', inline: false },
@@ -175,7 +230,7 @@ function setupAutoKarantinaHandler(client) {
                 .setTimestamp()
                 .setFooter({ text: 'Auto Karantina System' });
 
-            // Kirim konfirmasi ke channel
+            // Kirim konfirmasi ke channel (mention team role)
             await message.channel.send({
                 content: `<@&${KARANTINA_CONFIG.TEAM_ROLE_ID}>`,
                 embeds: [confirmEmbed]
