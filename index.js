@@ -37,6 +37,7 @@ const paymentHandler = require('./handlers/payment');
 const { setupLogsHandler } = require('./handlers/logs-discord');
 const { setupWelcomerHandler } = require('./handlers/welcomer');
 const { setupCommandsHandler } = require('./handlers/commands');
+const { setupAutoKarantinaHandler } = require('./handlers/auto-karantina');
 
 // --- CONFIG ---
 const CONFIG = {
@@ -251,6 +252,7 @@ client.once('ready', async () => {
     setupWelcomerHandler(client);
     ticketHandler(client);
     unbanHandler(client);
+    setupAutoKarantinaHandler(client);
 
     setInterval(() => {
         const announceChannel = client.channels.cache.get(CONFIG.ANNOUNCE_CHANNEL);
