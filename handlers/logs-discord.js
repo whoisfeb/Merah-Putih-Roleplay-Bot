@@ -15,10 +15,24 @@ function sendLog(guild, embed) {
     if (!guild) return;
     const logChannel = guild.channels.cache.get(LOG_CHANNEL_ID);
     if (logChannel) {
-        logChannel.send({ embeds: [embed] }).catch(err => 
+        logChannel.send({ embeds: [embed] }).catch(err =>
             console.error('❌ Gagal mengirim log:', err)
         );
     }
+}
+
+// Safety helpers to avoid Embed field/description length violations
+function safeFieldValue(text, max = 1024) {
+    if (text === undefined || text === null) return '*Tidak tersedia*';
+    const s = String(text);
+    if (s.length <= max) return s;
+    return s.slice(0, max - 3) + '...';
+}
+function safeDescription(text, max = 4096) {
+    if (text === undefined || text === null) return '';
+    const s = String(text);
+    if (s.length <= max) return s;
+    return s.slice(0, max - 3) + '...';
 }
 
 // ==========================================
@@ -26,7 +40,7 @@ function sendLog(guild, embed) {
 // ==========================================
 
 async function setupLogsHandler(client) {
-    
+
     // ==========================================
     // SLASH COMMAND HANDLERS
     // ==========================================
@@ -43,7 +57,7 @@ async function setupLogsHandler(client) {
             .setTitle('🗑️ Pesan Dihapus')
             .setColor('#e74c3c')
             .setDescription(`Pesan dikirim oleh ${message.author || 'User Tidak Diketahui'} di channel ${message.channel} telah dihapus.`)
-            .addFields({ name: 'Isi Pesan', value: message.content || '*Hanya berisi gambar/file/embed atau pesan terlalu lama sehingga tidak tersimpan di cache.*' })
+            .addFields({ name: 'Isi Pesan', value: safeFieldValue(message.content || '*Hanya berisi gambar/file/embed atau pesan terlalu lama sehingga tidak tersimpan di cache.*') })
             .setTimestamp();
         sendLog(message.guild, embed);
     });
@@ -68,11 +82,11 @@ async function setupLogsHandler(client) {
             .setColor('#f1c40f')
             .setDescription(`Pesan dikirim oleh ${penulis} di channel ${oldMessage.channel} telah diubah.`)
             .addFields(
-                { name: 'Sebelum', value: oldMessage.content || '*Teks lama tidak dapat dimuat atau berupa file/embed*' },
-                { name: 'Sesudah', value: newMessage.content || '*Kosong / Hanya File*' }
+                { name: 'Sebelum', value: safeFieldValue(oldMessage.content || '*Teks lama tidak dapat dimuat atau berupa file/embed*') },
+                { name: 'Sesudah', value: safeFieldValue(newMessage.content || '*Kosong / Hanya File*') }
             )
             .setTimestamp();
-            
+
         sendLog(newMessage.guild, embed);
     });
 
@@ -82,7 +96,7 @@ async function setupLogsHandler(client) {
 
     client.on('channelCreate', async (channel) => {
         if (!channel.guild) return;
-        await new Promise(resolve => setTimeout(resolve, 1000)); 
+        await new Promise(resolve => setTimeout(resolve, 1000));
         const fetchedLogs = await channel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelCreate });
         const logEntry = fetchedLogs.entries.first();
         const executor = logEntry ? logEntry.executor.tag : 'Tidak diketahui';
@@ -126,14 +140,14 @@ async function setupLogsHandler(client) {
 
             if (oldPerms.size === newPerms.size && oldPerms.size > 0) {
                 let adaPerubahanReal = false;
-                
+
                 for (const [key, oldPerm] of oldPerms) {
                     const newPerm = newPerms.get(key);
                     if (!newPerm) {
                         adaPerubahanReal = true;
                         break;
                     }
-                    if (oldPerm.allow.bitfield !== newPerm.allow.bitfield || 
+                    if (oldPerm.allow.bitfield !== newPerm.allow.bitfield ||
                         oldPerm.deny.bitfield !== newPerm.deny.bitfield) {
                         adaPerubahanReal = true;
                         break;
@@ -145,7 +159,7 @@ async function setupLogsHandler(client) {
                 } else {
                     const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelOverwriteUpdate });
                     const logEntry = fetchedLogs.entries.first();
-                    
+
                     if (!logEntry) {
                         console.log(`⏭️ Skip: Permission berubah tapi tidak ada di audit log`);
                     } else {
@@ -154,9 +168,9 @@ async function setupLogsHandler(client) {
                             .setColor('#e67e22')
                             .setDescription(`Hak akses pengaturan pada channel ${newChannel} telah dimodifikasi.`)
                             .addFields(
-                                { name: 'Target Saluran', value: `**${newChannel.name}**` },
-                                { name: 'Diubah Oleh', value: `**${executor}**` },
-                                { name: 'Catatan', value: '*Periksa pengaturan channel secara langsung untuk melihat detail role/member yang diubah.*' }
+                                { name: 'Target Saluran', value: safeFieldValue(`**${newChannel.name}**`) },
+                                { name: 'Diubah Oleh', value: safeFieldValue(`**${executor}**`) },
+                                { name: 'Catatan', value: safeFieldValue('*Periksa pengaturan channel secara langsung untuk melihat detail role/member yang diubah.*') }
                             );
                         sendLog(newChannel.guild, embed);
                     }
@@ -164,7 +178,7 @@ async function setupLogsHandler(client) {
             } else if (oldPerms.size !== newPerms.size) {
                 const fetchedLogs = await oldChannel.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.ChannelOverwriteUpdate });
                 const logEntry = fetchedLogs.entries.first();
-                
+
                 if (!logEntry) {
                     console.log(`⏭️ Skip: Permission overwrite berubah tapi tidak ada di audit log`);
                 } else {
@@ -173,14 +187,14 @@ async function setupLogsHandler(client) {
                         .setColor('#e67e22')
                         .setDescription(`Hak akses pengaturan pada channel ${newChannel} telah dimodifikasi.`)
                         .addFields(
-                            { name: 'Target Saluran', value: `**${newChannel.name}**` },
-                            { name: 'Diubah Oleh', value: `**${executor}**` },
-                            { name: 'Catatan', value: '*Periksa pengaturan channel secara langsung untuk melihat detail role/member yang diubah.*' }
+                            { name: 'Target Saluran', value: safeFieldValue(`**${newChannel.name}**`) },
+                            { name: 'Diubah Oleh', value: safeFieldValue(`**${executor}**`) },
+                            { name: 'Catatan', value: safeFieldValue('*Periksa pengaturan channel secara langsung untuk melihat detail role/member yang diubah.*') }
                         );
                     sendLog(newChannel.guild, embed);
                 }
             }
-            return; 
+            return;
         }
 
         // B. Deteksi Perubahan Nama
@@ -192,9 +206,9 @@ async function setupLogsHandler(client) {
             embed.setTitle(`✏️ Nama ${tipeKonten} Diubah`)
                 .setDescription(`Perubahan nama pada ${newChannel}`)
                 .addFields(
-                    { name: 'Nama Lama', value: oldChannel.name, inline: true },
-                    { name: 'Nama Baru', value: newChannel.name, inline: true },
-                    { name: 'Pengubah', value: executor }
+                    { name: 'Nama Lama', value: safeFieldValue(oldChannel.name), inline: true },
+                    { name: 'Nama Baru', value: safeFieldValue(newChannel.name), inline: true },
+                    { name: 'Pengubah', value: safeFieldValue(executor) }
                 );
             sendLog(newChannel.guild, embed);
         }
@@ -211,9 +225,9 @@ async function setupLogsHandler(client) {
             embed.setTitle(`📂 Perpindahan Kategori ${tipeKonten}`)
                 .setDescription(`Posisi kategori ${newChannel} telah bergeser.`)
                 .addFields(
-                    { name: 'Kategori Lama', value: katLama, inline: true },
-                    { name: 'Kategori Baru', value: katBaru, inline: true },
-                    { name: 'Pengubah', value: executor }
+                    { name: 'Kategori Lama', value: safeFieldValue(katLama), inline: true },
+                    { name: 'Kategori Baru', value: safeFieldValue(katBaru), inline: true },
+                    { name: 'Pengubah', value: safeFieldValue(executor) }
                 );
             sendLog(newChannel.guild, embed);
         }
@@ -229,7 +243,7 @@ async function setupLogsHandler(client) {
             .setColor('#2ecc71')
             .setDescription(`${member} (${member.user.tag}) telah bergabung ke dalam server.`)
             .setThumbnail(member.user.displayAvatarURL({ dynamic: true }))
-            .addFields({ name: 'ID Pengguna', value: member.id })
+            .addFields({ name: 'ID Pengguna', value: safeFieldValue(member.id) })
             .setTimestamp();
         sendLog(member.guild, embed);
     });
@@ -238,7 +252,7 @@ async function setupLogsHandler(client) {
         await new Promise(resolve => setTimeout(resolve, 1000));
         const fetchedLogs = await member.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.MemberKick });
         const kickLog = fetchedLogs.entries.first();
-        
+
         let deskripsi = `${member.user.tag} telah meninggalkan server secara mandiri.`;
         let judul = '📤 Member Keluar';
         let warna = '#95a5a6';
@@ -249,7 +263,7 @@ async function setupLogsHandler(client) {
             deskripsi = `${member} (${member.user.tag}) telah ditendang oleh **${kickLog.executor.tag}**.\n**Alasan:** ${kickLog.reason || 'Tidak ada alasan'}`;
         }
 
-        const embed = new EmbedBuilder().setTitle(judul).setColor(warna).setDescription(deskripsi).setTimestamp();
+        const embed = new EmbedBuilder().setTitle(judul).setColor(warna).setDescription(safeDescription(deskripsi)).setTimestamp();
         sendLog(member.guild, embed);
     });
 
@@ -265,8 +279,8 @@ async function setupLogsHandler(client) {
             .setColor('#d32f2f')
             .setDescription(`${ban.user} (${ban.user.tag}) telah dibanned secara permanen.`)
             .addFields(
-                { name: 'Eksekutor', value: executor, inline: true },
-                { name: 'Alasan', value: alasan, inline: true }
+                { name: 'Eksekutor', value: safeFieldValue(executor), inline: true },
+                { name: 'Alasan', value: safeFieldValue(alasan), inline: true }
             )
             .setTimestamp();
         sendLog(ban.guild, embed);
@@ -300,8 +314,8 @@ async function setupLogsHandler(client) {
             embed.setTitle('🏷️ Perubahan Nama Panggilan Server')
                 .setDescription(`Nama panggilan server ${newMember} telah diubah.`)
                 .addFields(
-                    { name: 'Semula', value: `\`${namaLama}\``, inline: true },
-                    { name: 'Menjadi', value: `\`${namaBaru}\``, inline: true }
+                    { name: 'Semula', value: safeFieldValue(`\`${namaLama}\``), inline: true },
+                    { name: 'Menjadi', value: safeFieldValue(`\`${namaBaru}\``), inline: true }
                 );
         }
 
@@ -338,8 +352,8 @@ async function setupLogsHandler(client) {
                     .setColor('#2ecc71')
                     .setDescription(`Role baru telah ditambahkan ke ${newMember}`)
                     .addFields(
-                        { name: 'Role yang Diberi', value: addedRoles.map(r => `${r}`).join(', ') },
-                        { name: 'Diberikan Oleh', value: `${executor}` }
+                        { name: 'Role yang Diberi', value: safeFieldValue(addedRoles.map(r => `${r}`).join(', ')) },
+                        { name: 'Diberikan Oleh', value: safeFieldValue(`${executor}`) }
                     );
             }
 
@@ -349,8 +363,8 @@ async function setupLogsHandler(client) {
                     .setColor('#e74c3c')
                     .setDescription(`Role telah dicabut dari ${newMember}`)
                     .addFields(
-                        { name: 'Role yang Dicabut', value: removedRoles.map(r => `${r}`).join(', ') },
-                        { name: 'Dicabut Oleh', value: `${executor}` }
+                        { name: 'Role yang Dicabut', value: safeFieldValue(removedRoles.map(r => `${r}`).join(', ')) },
+                        { name: 'Dicabut Oleh', value: safeFieldValue(`${executor}`) }
                     );
             }
         }
@@ -368,15 +382,15 @@ async function setupLogsHandler(client) {
 
             if (oldUser.username !== newUser.username) {
                 embed.addFields(
-                    { name: 'Username Lama', value: `\`@${oldUser.username}\``, inline: true },
-                    { name: 'Username Baru', value: `\`@${newUser.username}\``, inline: true }
+                    { name: 'Username Lama', value: safeFieldValue(`\`@${oldUser.username}\``), inline: true },
+                    { name: 'Username Baru', value: safeFieldValue(`\`@${newUser.username}\``), inline: true }
                 );
             }
 
             if (oldUser.displayName !== newUser.displayName) {
                 embed.addFields(
-                    { name: 'Display Name Lama', value: `\`${oldUser.displayName}\``, inline: true },
-                    { name: 'Display Name Baru', value: `\`${newUser.displayName}\``, inline: true }
+                    { name: 'Display Name Lama', value: safeFieldValue(`\`${oldUser.displayName}\``), inline: true },
+                    { name: 'Display Name Baru', value: safeFieldValue(`\`${newUser.displayName}\``), inline: true }
                 );
             }
 
@@ -422,7 +436,7 @@ async function setupLogsHandler(client) {
 
     client.on('roleUpdate', async (oldRole, newRole) => {
         if (!oldRole.guild) return;
-        
+
         if (oldRole.permissions.bitfield !== newRole.permissions.bitfield) {
             await new Promise(resolve => setTimeout(resolve, 1000));
             const fetchedLogs = await oldRole.guild.fetchAuditLogs({ limit: 1, type: AuditLogEvent.RoleUpdate });
@@ -431,7 +445,7 @@ async function setupLogsHandler(client) {
 
             const oldPerms = oldRole.permissions.toArray();
             const newPerms = newRole.permissions.toArray();
-            
+
             const permsDitambahkan = newPerms.filter(p => !oldPerms.includes(p));
             const permsDihapus = oldPerms.filter(p => !newPerms.includes(p));
 
@@ -442,10 +456,10 @@ async function setupLogsHandler(client) {
                 .setTimestamp();
 
             if (permsDitambahkan.length > 0) {
-                embed.addFields({ name: '🟢 Izin Ditambahkan', value: `\`${permsDitambahkan.join(', ')}\`` });
+                embed.addFields({ name: '🟢 Izin Ditambahkan', value: safeFieldValue(`\`${permsDitambahkan.join(', ')}\``) });
             }
             if (permsDihapus.length > 0) {
-                embed.addFields({ name: '🔴 Izin Dicabut/Dihapus', value: `\`${permsDihapus.join(', ')}\`` });
+                embed.addFields({ name: '🔴 Izin Dicabut/Dihapus', value: safeFieldValue(`\`${permsDihapus.join(', ')}\``) });
             }
 
             sendLog(newRole.guild, embed);
@@ -477,8 +491,8 @@ async function setupLogsHandler(client) {
                 .setColor('#34495e')
                 .setDescription(`${member} (${member.user.tag}) berpindah ruangan voice.`)
                 .addFields(
-                    { name: 'Dari Room', value: `<#${oldState.channelId}>`, inline: true },
-                    { name: 'Ke Room', value: `<#${newState.channelId}>`, inline: true }
+                    { name: 'Dari Room', value: safeFieldValue(`<#${oldState.channelId}>`), inline: true },
+                    { name: 'Ke Room', value: safeFieldValue(`<#${newState.channelId}>`), inline: true }
                 );
             sendLog(newState.guild, embed);
         }
