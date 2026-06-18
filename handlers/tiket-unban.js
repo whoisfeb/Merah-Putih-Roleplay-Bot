@@ -338,7 +338,7 @@ module.exports = (client) => {
                     const member = await interaction.guild.members.fetch(ownerId);
                     if (member) {
                         await member.send({
-                            content: `Halo ${member.user.username},\n\nStaff telah menandai bahwa Anda *telah di-unban* atau proses unban telah dilakukan terkait tiket \`${channel.name}\` di server **${interaction.guild.name}**.\nJika masih ada masalah, balas tiket ini atau hubungi staff.`
+                            content: `Halo ${member.user.username},\n\nStaff telah menandai bahwa Anda *telah di-unban* atau proses unban telah dilakukan terkait tiket \`${channel.name}\` di server **${interaction.guild.name}**.\nJika masih ada masalah, silahkan hubungi staff.`
                         });
                         dmSuccess = true;
                     }
