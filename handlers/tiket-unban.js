@@ -1,4 +1,3 @@
-// name=unban-handler.js
 const {
     ActionRowBuilder,
     ButtonBuilder,
@@ -34,7 +33,6 @@ module.exports = (client) => {
             for (const [id, overwrite] of channel.permissionOverwrites.cache) {
                 if (id === channel.guild.id) continue;
                 if (id === ADMIN_ROLE_ID) continue;
-                // coba fetch member untuk memastikan ini member
                 try {
                     await channel.guild.members.fetch(id);
                     ownerId = id;
@@ -50,12 +48,10 @@ module.exports = (client) => {
 
     // Helper: tulis/update topic untuk menyimpan meta
     async function writeTicketMeta(channel, meta = {}) {
-        // baca existing topic (jika ada) lalu ganti/append ticketOwner dan unbanned
         const existing = channel.topic || '';
-        let ownerId = meta.ownerId;
-        let unbanned = typeof meta.unbanned === 'boolean' ? meta.unbanned : null;
+        const ownerId = meta.ownerId;
+        const unbanned = typeof meta.unbanned === 'boolean' ? meta.unbanned : null;
 
-        // mulai dari scratch jika tidak ada owner di existing dan ownerId disediakan
         let newTopic = existing;
 
         if (ownerId) {
@@ -74,14 +70,21 @@ module.exports = (client) => {
             }
         }
 
-        // jika topic berubah atau awalnya kosong
         if (newTopic !== existing) {
             try {
-                await channel.setTopic(newTopic).catch(() => {}); // ignore if missing permissions
+                await channel.setTopic(newTopic).catch(() => {});
             } catch (err) {
-                // setTopic kadang gagal tanpa izin Manage Channels
                 console.error('[UNBAN HANDLER] Gagal setTopic:', err);
             }
+        }
+    }
+
+    // Helper: cek apakah interaction.user adalah admin
+    function isAdmin(interaction) {
+        try {
+            return interaction.member.roles.cache.has(ADMIN_ROLE_ID);
+        } catch {
+            return false;
         }
     }
 
@@ -121,7 +124,7 @@ module.exports = (client) => {
                         await interaction.deferReply({ ephemeral: true });
                     }
 
-                    if (!interaction.member.roles.cache.has(ADMIN_ROLE_ID)) {
+                    if (!isAdmin(interaction)) {
                         return await interaction.editReply({
                             content: '❌ Hanya Admin yang boleh menggunakan perintah ini!'
                         });
@@ -309,10 +312,10 @@ module.exports = (client) => {
             }
         }
 
-        // Handler untuk tombol "Mark as Unbanned"
+        // Handler untuk tombol "Mark as Unbanned" (Hanya Admin)
         if (interaction.isButton() && interaction.customId === 'mark_unbanned') {
             try {
-                if (!interaction.member.roles.cache.has(ADMIN_ROLE_ID)) {
+                if (!isAdmin(interaction)) {
                     return await interaction.reply({
                         content: '❌ Hanya Admin yang boleh menandai unban!',
                         ephemeral: true
@@ -349,13 +352,12 @@ module.exports = (client) => {
 
                 // kirim pesan di channel tiket untuk log (non-ephemeral)
                 const logMsg = dmSuccess
-                    ? `✅ Pemilik tiket telah diberitahu lewat DM bahwa mereka sudah di-unban.`
-                    : `⚠️ Gagal mengirim DM ke pemilik tiket. Pemilik mungkin mematikan DM; tolong hubungi secara manual.`;
+                    ? `✅ Pemilik tiket telah diberitahu lewat DM bahwa mereka sudah di-unban. Channel akan ditutup otomatis.`
+                    : `⚠️ Gagal mengirim DM ke pemilik tiket. Pemilik mungkin mematikan DM; channel akan tetap ditutup otomatis.`;
 
                 try {
                     await channel.send({ content: `**[SYSTEM]** ${interaction.user.tag} menandai user sebagai *UNBANNED*.\n${logMsg}` });
                 } catch (err) {
-                    // ignore if cannot send
                     console.error('[UNBAN HANDLER] Gagal kirim pesan log di channel:', err);
                 }
 
@@ -373,7 +375,10 @@ module.exports = (client) => {
                     }
                 }
 
-                return await interaction.reply({ content: '✅ User ditandai sebagai UNBANNED dan diberi tahu (jika DM berhasil).', ephemeral: true });
+                await interaction.reply({ content: '✅ User ditandai sebagai UNBANNED. Channel akan ditutup otomatis dalam 5 detik.', ephemeral: true });
+
+                // otomatis hapus channel setelah delay
+                setTimeout(() => channel.delete().catch(() => {}), 5000);
 
             } catch (err) {
                 console.error('[UNBAN HANDLER] Gagal mark_unbanned:', err);
@@ -385,10 +390,10 @@ module.exports = (client) => {
             }
         }
 
-        // 3. TUTUP TIKET (HANYA UNTUK ADMIN)
+        // 3. TUTUP TIKET (Hanya Admin)
         if (interaction.isButton() && interaction.customId === 'close_ticket') {
             try {
-                if (!interaction.member.roles.cache.has(ADMIN_ROLE_ID)) {
+                if (!isAdmin(interaction)) {
                     return await interaction.reply({
                         content: '❌ Hanya Admin yang boleh menutup tiket ini!',
                         ephemeral: true
@@ -396,51 +401,27 @@ module.exports = (client) => {
                 }
 
                 const channel = interaction.channel;
+
+                // Tidak mengirim DM — hanya menutup channel
+                await interaction.reply({
+                    content: '🗂️ Ticket akan ditutup dan dihapus dalam 5 detik.',
+                    ephemeral: true
+                });
+
+                // optional: kirim staff log jika di-setup
                 const { ownerId, unbanned } = await readTicketMeta(channel);
-
-                let dmSent = false;
-                if (ownerId) {
-                    try {
-                        const member = await interaction.guild.members.fetch(ownerId);
-                        if (member) {
-                            await member.send({
-                                content: `Halo ${member.user.username},\n\nTiket \`${channel.name}\` di **${interaction.guild.name}** telah ditutup oleh **${interaction.user.tag}**.\nStatus unban: ${unbanned ? '✅ Sudah di-unban' : '❌ Belum di-unban'}.\nJika masih ada kendala, silakan hubungi staff.`
-                            });
-                            dmSent = true;
-                        }
-                    } catch (err) {
-                        console.error('[UNBAN HANDLER] Gagal mengirim DM pada close_ticket:', err);
-                        dmSent = false;
-                    }
-                }
-
-                // fallback jika DM gagal: mention di channel sebelum dihapus
-                if (!dmSent && ownerId) {
-                    try {
-                        await channel.send({ content: `⚠️ Tidak dapat mengirim DM ke <@${ownerId}>. Silakan hubungi mereka secara manual.` });
-                    } catch (err) {
-                        console.error('[UNBAN HANDLER] Gagal pesan fallback mention:', err);
-                    }
-                }
-
-                // kirim staff log jika di-setup
                 if (STAFF_LOG_CHANNEL_ID) {
                     try {
                         const logChan = await interaction.guild.channels.fetch(STAFF_LOG_CHANNEL_ID);
                         if (logChan && logChan.isText()) {
                             await logChan.send({
-                                content: `🗂️ Ticket closed by **${interaction.user.tag}**\nTicket: ${channel.name}\nOwner: ${ownerId ? `<@${ownerId}>` : 'Unknown'}\nUnbanned: ${unbanned}\nDM sent: ${dmSent}`
+                                content: `🗂️ Ticket closed by **${interaction.user.tag}**\nTicket: ${channel.name}\nOwner: ${ownerId ? `<@${ownerId}>` : 'Unknown'}\nUnbanned: ${unbanned}`
                             });
                         }
                     } catch (err) {
                         console.error('[UNBAN HANDLER] Gagal kirim staff log on close:', err);
                     }
                 }
-
-                await interaction.reply({
-                    content: dmSent ? '✅ Pemilik tiket sudah diberitahu lewat DM. Channel akan dihapus dalam 5 detik.' : '⚠️ Pemilik tiket tidak dapat diberitahu lewat DM (atau tidak ditemukan). Channel akan dihapus dalam 5 detik.',
-                    ephemeral: true
-                });
 
                 setTimeout(() => channel.delete().catch(() => {}), 5000);
 
