@@ -1,4 +1,3 @@
-name=handlers/welcomer.js
 // ==========================================
 // HANDLER WELCOMER - ALL IN ONE FILE
 // ==========================================
