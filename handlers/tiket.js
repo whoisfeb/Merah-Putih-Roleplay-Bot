@@ -14,6 +14,7 @@ const {
 
 const CATEGORY_ID = '1392382458615435270';
 const LOG_CHANNEL_ID = '1502910714023645224'; 
+const ROLE_BUILDER_ID = '1517434358623899699';
 
 // DAFTAR ID ROLE ADMIN YANG BOLEH KLIK SELESAI/TUTUP
 const ALLOWED_ADMIN_ROLES = [
@@ -283,30 +284,21 @@ module.exports = (client) => {
 
             try {
 
+                const ROLE_BUILDER_ID = '1234567890123456789'; // ⬅️ Ganti dengan ID role Builder Anda
+
                 const ticketChannel = await interaction.guild.channels.create({
-
                     name: channelName,
-
                     type: ChannelType.GuildText,
-
                     parent: CATEGORY_ID,
-
                     permissionOverwrites: [
-
                         { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
-
                         { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.AttachFiles] },
-
+                        { id: ROLE_BUILDER_ID, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] },
                         ...ALLOWED_ADMIN_ROLES.map(roleId => ({
-
                             id: roleId,
-
                             allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages]
-
                         }))
-
                     ],
-
                 });
 
 
