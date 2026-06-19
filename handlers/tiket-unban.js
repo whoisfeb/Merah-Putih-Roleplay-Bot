@@ -92,14 +92,14 @@ module.exports = (client) => {
     client.on('messageCreate', async (message) => {
         if (message.content === '!setup-unban') {
             const embed = new EmbedBuilder()
-                .setTitle('🎫 Sistem Banding Unban')
-                .setDescription('Klik tombol di bawah untuk mengisi formulir permohonan unban.')
+                .setTitle('🎫 Ticket Unbanned')
+                .setDescription('Silahkan klik tombol di bawah untuk membuat tiket unban.')
                 .setColor(0x2F3136);
 
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('open_unban_form')
-                    .setLabel('Buka Tiket Unban')
+                    .setLabel('Buat Tiket Unbanned')
                     .setEmoji('📩')
                     .setStyle(ButtonStyle.Primary)
             );
@@ -284,7 +284,7 @@ module.exports = (client) => {
                 );
 
                 await ticketChannel.send({
-                    content: `Halo ${interaction.user} & <@&${ADMIN_ROLE_ID}>`,
+                    content: `Halo ${interaction.user} kirim screenshot banned & tunggu respon dari <@&${ADMIN_ROLE_ID}>`,
                     embeds: [resultEmbed],
                     components: [actionRow]
                 });
