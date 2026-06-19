@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
 // ============================================
 // CONFIG - SESUAIKAN DENGAN SERVER ANDA
@@ -68,8 +68,11 @@ function parseKarantinaMessage(content) {
             else if (line.toUpperCase().startsWith('FACTION :')) {
                 result.faction = line.substring(9).trim();
             }
-            else if (line.toUpperCase().startsWith('WAKTU KARANTINA :')) {
-                result.waktuKarantina = line.substring(17).trim();
+            else if (line.toUpperCase().includes('WAKTU KARANTINA')) {
+                const colonIndex = line.indexOf(':');
+                if (colonIndex !== -1) {
+                    result.waktuKarantina = line.substring(colonIndex + 1).trim();
+                }
             }
             else if (line.toUpperCase().startsWith('REASON :')) {
                 result.reason = line.substring(8).trim();
@@ -93,18 +96,56 @@ function parseKarantinaMessage(content) {
 function setupAutoKarantinaHandler(client) {
     client.on('messageCreate', async (message) => {
         try {
-            if (message.channelId !== KARANTINA_CONFIG.KARANTINA_CHANNEL_ID) return;
-            if (message.author.bot) return;
+            // SAFETY CHECK 1: Guild & Channel
+            if (!message.guild) {
+                return;
+            }
+            if (message.channelId !== KARANTINA_CONFIG.KARANTINA_CHANNEL_ID) {
+                return;
+            }
+            if (message.author.bot) {
+                return;
+            }
+
+            // SAFETY CHECK 2: Bot Permissions
+            const botMember = message.guild.members.me;
+            if (!botMember) {
+                console.error('[AUTO-KARANTINA] ❌ Bot member not found in guild');
+                return;
+            }
+
+            if (!botMember.permissions.has(PermissionFlagsBits.ManageRoles)) {
+                console.error('[AUTO-KARANTINA] ❌ Bot tidak punya permission: MANAGE_ROLES');
+                await message.reply('❌ Bot tidak punya permission untuk manage roles!');
+                return;
+            }
+
+            if (!botMember.permissions.has(PermissionFlagsBits.ChangeNickname)) {
+                console.error('[AUTO-KARANTINA] ❌ Bot tidak punya permission: CHANGE_NICKNAME');
+                await message.reply('❌ Bot tidak punya permission untuk change nickname!');
+                return;
+            }
 
             const karantinaData = parseKarantinaMessage(message.content);
 
             console.log('[AUTO-KARANTINA] Format valid ditemukan, memproses...');
             console.log('[AUTO-KARANTINA] Parsed users:', karantinaData.users);
 
-            if (!karantinaData.isValid) return;
+            if (!karantinaData.isValid) {
+                console.log('[AUTO-KARANTINA] ⚠️  Format tidak valid');
+                return;
+            }
 
             const guild = message.guild;
             const results = [];
+
+            // Pre-fetch all members to ensure cache is populated
+            console.log('[AUTO-KARANTINA] Pre-fetching members...');
+            try {
+                await guild.members.fetch({ limit: 1000 });
+            } catch (err) {
+                console.warn('[AUTO-KARANTINA] ⚠️  Gagal pre-fetch members:', err.message);
+            }
 
             for (const userIdentifier of karantinaData.users) {
                 console.log(`\n[AUTO-KARANTINA] ========== Processing: ${userIdentifier} ==========`);
@@ -168,6 +209,14 @@ function setupAutoKarantinaHandler(client) {
                         continue;
                     }
 
+                    // SAFETY CHECK 3: User is not higher than bot
+                    if (member.roles.highest.position >= botMember.roles.highest.position) {
+                        console.warn(`[AUTO-KARANTINA] ⚠️  ${member.user.tag} role lebih tinggi dari bot, SKIP`);
+                        res.error = 'Role member lebih tinggi dari bot';
+                        results.push(res);
+                        continue;
+                    }
+
                     res.found = true;
                     res.tag = member.user.tag;
 
@@ -206,6 +255,7 @@ function setupAutoKarantinaHandler(client) {
                             console.log(`[AUTO-KARANTINA] ✅ Nickname set success`);
                         } catch (err) {
                             console.error(`[AUTO-KARANTINA] ❌ setNickname failed: ${err.code} - ${err.message}`);
+                            // do not abort; continue with roles
                         }
                     } else {
                         console.log(`[AUTO-KARANTINA] ℹ️  Nickname already matches`);
@@ -252,7 +302,7 @@ function setupAutoKarantinaHandler(client) {
                 }
 
                 results.push(res);
-                await new Promise(r => setTimeout(r, 100)); // Delay kecil
+                await new Promise(r => setTimeout(r, 200)); // Delay lebih panjang untuk safety
             }
 
             // Send one summary embed (for clarity)
