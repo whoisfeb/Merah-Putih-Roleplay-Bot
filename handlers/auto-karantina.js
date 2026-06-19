@@ -247,7 +247,7 @@ function setupAutoKarantinaHandler(client) {
                 
                 // Add delay untuk menghindari rate limit (optional, uncomment jika perlu)
                 // await new Promise(r => setTimeout(r, 500));
-            }
+            } // ← TUTUP FOR LOOP
 
             // Send one summary embed (for clarity)
             try {
@@ -284,8 +284,9 @@ function setupAutoKarantinaHandler(client) {
         } catch (error) {
             console.error('[AUTO-KARANTINA] ❌ Error di handler:', error);
         }
-    });
+    }); // ← TUTUP client.on
 
     console.log('[AUTO-KARANTINA] Handler berhasil di-setup!');
+} // ← TUTUP FUNCTION
 
 module.exports = { setupAutoKarantinaHandler, KARANTINA_CONFIG };
