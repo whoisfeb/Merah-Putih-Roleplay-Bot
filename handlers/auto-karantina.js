@@ -122,21 +122,30 @@ function setupAutoKarantinaHandler(client) {
 
                 let member = null;
                 try {
-                    // Try fetch by ID (if numeric)
+                    // Try fetch by ID with TIMEOUT (if numeric)
                     if (/^\d+$/.test(userIdentifier)) {
                         try {
-                            console.log(`[AUTO-KARANTINA] Attempting fetch by ID...`);
-                            member = await guild.members.fetch(userIdentifier);
+                            console.log(`[AUTO-KARANTINA] Attempting fetch by ID with timeout (5s)...`);
+                            
+                            // Fetch dengan timeout 5 detik
+                            const fetchPromise = guild.members.fetch(userIdentifier);
+                            member = await Promise.race([
+                                fetchPromise,
+                                new Promise((_, reject) => 
+                                    setTimeout(() => reject(new Error('Fetch timeout')), 5000)
+                                )
+                            ]);
+                            
                             console.log(`[AUTO-KARANTINA] ✅ Fetch by ID success`);
                         } catch (err) {
-                            console.log(`[AUTO-KARANTINA] ❌ Fetch by ID failed: ${err.code} - ${err.message}`);
+                            console.log(`[AUTO-KARANTINA] ❌ Fetch by ID failed/timeout: ${err.message}`);
                             member = null;
                         }
                     }
 
                     // fallback: search cache by username, tag, or nickname (case-insensitive)
                     if (!member) {
-                        console.log(`[AUTO-KARANTINA] Searching in cache...`);
+                        console.log(`[AUTO-KARANTINA] Searching in cache (${guild.members.cache.size} members)...`);
                         const lower = userIdentifier.toLowerCase();
                         member = guild.members.cache.find(m => {
                             const username = m.user.username.toLowerCase();
@@ -197,7 +206,6 @@ function setupAutoKarantinaHandler(client) {
                             console.log(`[AUTO-KARANTINA] ✅ Nickname set success`);
                         } catch (err) {
                             console.error(`[AUTO-KARANTINA] ❌ setNickname failed: ${err.code} - ${err.message}`);
-                            // do not abort; continue with roles
                         }
                     } else {
                         console.log(`[AUTO-KARANTINA] ℹ️  Nickname already matches`);
@@ -239,15 +247,13 @@ function setupAutoKarantinaHandler(client) {
                     console.log(`[AUTO-KARANTINA] ========== DONE: ${member.user.tag} ==========\n`);
 
                 } catch (err) {
-                    console.error('[AUTO-KARANTINA] ❌ Unexpected error:', err);
+                    console.error('[AUTO-KARANTINA] ❌ Unexpected error:', err.message);
                     res.error = String(err.message || err);
                 }
 
                 results.push(res);
-                
-                // Add delay untuk menghindari rate limit (optional, uncomment jika perlu)
-                // await new Promise(r => setTimeout(r, 500));
-            } // ← TUTUP FOR LOOP
+                await new Promise(r => setTimeout(r, 100)); // Delay kecil
+            }
 
             // Send one summary embed (for clarity)
             try {
@@ -259,7 +265,6 @@ function setupAutoKarantinaHandler(client) {
                     return `• ${r.tag} — ✅\n    - Nama Lama: ${r.oldNickname}\n    - Nama Baru: ${r.newNickname}\n    - Roles Dihapus: ${removed}\n    - Karantina Role: ${r.karantinaRoleAdded ? 'Ya' : 'Tidak'}`;
                 }).join('\n\n');
 
-                // Truncate jika terlalu panjang
                 const description = lines.length > 4096 ? lines.substring(0, 4093) + '...' : lines;
 
                 const summaryEmbed = new EmbedBuilder()
@@ -276,17 +281,17 @@ function setupAutoKarantinaHandler(client) {
                 
                 console.log(`[AUTO-KARANTINA] ✅ Summary embed sent`);
             } catch (err) {
-                console.error('[AUTO-KARANTINA] ❌ gagal mengirim summary embed:', err.code, err.message);
+                console.error('[AUTO-KARANTINA] ❌ gagal mengirim summary embed:', err.message);
             }
 
-            console.log('[AUTO-KARANTINA] ✅ ALL DONE! Hasil:', results);
+            console.log('[AUTO-KARANTINA] ✅ ALL DONE!');
 
         } catch (error) {
             console.error('[AUTO-KARANTINA] ❌ Error di handler:', error);
         }
-    }); // ← TUTUP client.on
+    });
 
     console.log('[AUTO-KARANTINA] Handler berhasil di-setup!');
-} // ← TUTUP FUNCTION
+}
 
 module.exports = { setupAutoKarantinaHandler, KARANTINA_CONFIG };
