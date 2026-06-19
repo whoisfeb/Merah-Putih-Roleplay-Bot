@@ -107,6 +107,8 @@ function setupAutoKarantinaHandler(client) {
             const results = [];
 
             for (const userIdentifier of karantinaData.users) {
+                console.log(`\n[AUTO-KARANTINA] ========== Processing: ${userIdentifier} ==========`);
+                
                 const res = {
                     identifier: userIdentifier,
                     found: false,
@@ -123,16 +125,18 @@ function setupAutoKarantinaHandler(client) {
                     // Try fetch by ID (if numeric)
                     if (/^\d+$/.test(userIdentifier)) {
                         try {
+                            console.log(`[AUTO-KARANTINA] Attempting fetch by ID...`);
                             member = await guild.members.fetch(userIdentifier);
-                            console.log(`[AUTO-KARANTINA] fetch by ID success for ${userIdentifier}`);
+                            console.log(`[AUTO-KARANTINA] ✅ Fetch by ID success`);
                         } catch (err) {
-                            console.log(`[AUTO-KARANTINA] fetch by ID failed for ${userIdentifier}: ${err.message}`);
+                            console.log(`[AUTO-KARANTINA] ❌ Fetch by ID failed: ${err.code} - ${err.message}`);
                             member = null;
                         }
                     }
 
                     // fallback: search cache by username, tag, or nickname (case-insensitive)
                     if (!member) {
+                        console.log(`[AUTO-KARANTINA] Searching in cache...`);
                         const lower = userIdentifier.toLowerCase();
                         member = guild.members.cache.find(m => {
                             const username = m.user.username.toLowerCase();
@@ -142,13 +146,14 @@ function setupAutoKarantinaHandler(client) {
                         }) || null;
 
                         if (member) {
-                            console.log(`[AUTO-KARANTINA] found in cache for ${userIdentifier} -> ${member.user.tag}`);
+                            console.log(`[AUTO-KARANTINA] ✅ Found in cache: ${member.user.tag}`);
                         } else {
-                            console.log(`[AUTO-KARANTINA] no member found for ${userIdentifier}`);
+                            console.log(`[AUTO-KARANTINA] ❌ NOT found in cache`);
                         }
                     }
 
                     if (!member) {
+                        console.log(`[AUTO-KARANTINA] ⚠️  Member tidak ditemukan, SKIP`);
                         res.error = 'Member tidak ditemukan di guild';
                         results.push(res);
                         continue;
@@ -187,66 +192,80 @@ function setupAutoKarantinaHandler(client) {
                     // set nickname if different
                     if (currentDisplayName !== newNick) {
                         try {
+                            console.log(`[AUTO-KARANTINA] Setting nickname: ${newNick}`);
                             await member.setNickname(newNick);
-                            console.log(`[AUTO-KARANTINA] setNickname success for ${member.user.tag} -> ${newNick}`);
+                            console.log(`[AUTO-KARANTINA] ✅ Nickname set success`);
                         } catch (err) {
-                            console.error(`[AUTO-KARANTINA] setNickname failed for ${member.user.tag}:`, err.message);
+                            console.error(`[AUTO-KARANTINA] ❌ setNickname failed: ${err.code} - ${err.message}`);
                             // do not abort; continue with roles
                         }
                     } else {
-                        console.log(`[AUTO-KARANTINA] nickname already matches for ${member.user.tag}`);
+                        console.log(`[AUTO-KARANTINA] ℹ️  Nickname already matches`);
                     }
 
                     // remove faction roles
+                    console.log(`[AUTO-KARANTINA] Removing faction roles...`);
                     for (const roleId of KARANTINA_CONFIG.FACTION_ROLE_IDS) {
                         if (member.roles.cache.has(roleId)) {
                             try {
                                 const role = guild.roles.cache.get(roleId);
+                                const roleName = role ? role.name : roleId;
+                                console.log(`[AUTO-KARANTINA]   Removing ${roleName}...`);
                                 await member.roles.remove(roleId);
-                                res.rolesRemoved.push(role ? role.name : roleId);
-                                console.log(`[AUTO-KARANTINA] removed role ${role ? role.name : roleId} from ${member.user.tag}`);
+                                res.rolesRemoved.push(roleName);
+                                console.log(`[AUTO-KARANTINA]   ✅ Removed ${roleName}`);
                             } catch (err) {
-                                console.error(`[AUTO-KARANTINA] failed to remove role ${roleId} from ${member.user.tag}:`, err.message);
+                                console.error(`[AUTO-KARANTINA]   ❌ Failed to remove: ${err.code} - ${err.message}`);
                             }
                         }
                     }
 
                     // add karantina role
+                    console.log(`[AUTO-KARANTINA] Adding karantina role...`);
                     const karRole = guild.roles.cache.get(KARANTINA_CONFIG.KARANTINA_ROLE_ID);
                     if (karRole) {
                         try {
+                            console.log(`[AUTO-KARANTINA]   Adding role: ${karRole.name}`);
                             await member.roles.add(KARANTINA_CONFIG.KARANTINA_ROLE_ID);
                             res.karantinaRoleAdded = true;
-                            console.log(`[AUTO-KARANTINA] added karantina role to ${member.user.tag}`);
+                            console.log(`[AUTO-KARANTINA] ✅ Karantina role added`);
                         } catch (err) {
-                            console.error(`[AUTO-KARANTINA] failed to add karantina role to ${member.user.tag}:`, err.message);
+                            console.error(`[AUTO-KARANTINA] ❌ Failed to add karantina role: ${err.code} - ${err.message}`);
                         }
                     } else {
-                        console.error('[AUTO-KARANTINA] karantina role not found in guild');
+                        console.error('[AUTO-KARANTINA] ❌ Karantina role NOT FOUND in guild');
                     }
 
+                    console.log(`[AUTO-KARANTINA] ========== DONE: ${member.user.tag} ==========\n`);
+
                 } catch (err) {
-                    console.error('[AUTO-KARANTINA] unexpected error while processing', userIdentifier, err);
+                    console.error('[AUTO-KARANTINA] ❌ Unexpected error:', err);
                     res.error = String(err.message || err);
                 }
 
                 results.push(res);
-                // small delay optionally if mass-processing many users (uncomment if needed)
-                // await new Promise(r => setTimeout(r, 200));
+                
+                // Add delay untuk menghindari rate limit (optional, uncomment jika perlu)
+                // await new Promise(r => setTimeout(r, 500));
             }
 
             // Send one summary embed (for clarity)
             try {
+                console.log(`[AUTO-KARANTINA] Sending summary embed...`);
+                
                 const lines = results.map(r => {
                     if (!r.found) return `• ${r.identifier} — ❌ ${r.error || 'tidak ditemukan'}`;
                     const removed = r.rolesRemoved.length ? r.rolesRemoved.join(', ') : 'Tidak ada';
                     return `• ${r.tag} — ✅\n    - Nama Lama: ${r.oldNickname}\n    - Nama Baru: ${r.newNickname}\n    - Roles Dihapus: ${removed}\n    - Karantina Role: ${r.karantinaRoleAdded ? 'Ya' : 'Tidak'}`;
                 }).join('\n\n');
 
+                // Truncate jika terlalu panjang
+                const description = lines.length > 4096 ? lines.substring(0, 4093) + '...' : lines;
+
                 const summaryEmbed = new EmbedBuilder()
                     .setTitle('Auto Karantina - Summary')
                     .setColor(0xFF6B6B)
-                    .setDescription(lines)
+                    .setDescription(description)
                     .setTimestamp()
                     .setFooter({ text: 'Auto Karantina System' });
 
@@ -254,17 +273,19 @@ function setupAutoKarantinaHandler(client) {
                     content: `<@&${KARANTINA_CONFIG.TEAM_ROLE_ID}>`,
                     embeds: [summaryEmbed]
                 });
+                
+                console.log(`[AUTO-KARANTINA] ✅ Summary embed sent`);
             } catch (err) {
-                console.error('[AUTO-KARANTINA] gagal mengirim summary embed:', err.message);
+                console.error('[AUTO-KARANTINA] ❌ gagal mengirim summary embed:', err.code, err.message);
             }
 
-            console.log('[AUTO-KARANTINA] selesai. Hasil:', results);
+            console.log('[AUTO-KARANTINA] ✅ ALL DONE! Hasil:', results);
+
         } catch (error) {
-            console.error('[AUTO-KARANTINA] Error di handler:', error);
+            console.error('[AUTO-KARANTINA] ❌ Error di handler:', error);
         }
     });
 
     console.log('[AUTO-KARANTINA] Handler berhasil di-setup!');
-}
 
 module.exports = { setupAutoKarantinaHandler, KARANTINA_CONFIG };
