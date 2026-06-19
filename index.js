@@ -203,6 +203,15 @@ const commands = [
         name: 'closetopup',
         description: 'Tutup tiket topup dengan alasan',
         options: [{ name: 'reason', type: 3, description: 'Alasan penutupan', required: true }]
+    },
+    {
+        name: 'sendtopup',
+        description: 'Kirim kode topup ke user (admin saja)',
+        options: [
+            { name: 'user', type: 6, description: 'Penerima (user)', required: true },
+            { name: 'code', type: 3, description: 'Kode topup (contoh: MPRP-65A5-U8ZG)', required: true },
+            { name: 'note', type: 3, description: 'Catatan/validitas (opsional)', required: false },
+        ],
     }
 ];
 
