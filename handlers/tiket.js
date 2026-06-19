@@ -284,8 +284,6 @@ module.exports = (client) => {
 
             try {
 
-                const ROLE_BUILDER_ID = '1234567890123456789'; // ⬅️ Ganti dengan ID role Builder Anda
-
                 const ticketChannel = await interaction.guild.channels.create({
                     name: channelName,
                     type: ChannelType.GuildText,
