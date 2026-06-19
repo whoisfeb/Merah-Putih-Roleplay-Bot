@@ -273,9 +273,19 @@ client.on('messageCreate', async (message) => {
 
 });
 
+// PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
 client.on('interactionCreate', async (interaction) => {
-    const paymentHandled = await paymentHandler(interaction, CONFIG);
-    if (paymentHandled) return;
+    // If it's a payment-related interaction, handle it IMMEDIATELY
+    // before any other async operations
+    if ((interaction.isChatInputCommand() && interaction.commandName === 'payment') ||
+        (interaction.isButton() && ['pay_bank_info', 'pay_gopay_info', 'pay_qris_info'].includes(interaction.customId))) {
+        try {
+            await paymentHandler(interaction, CONFIG);
+        } catch (err) {
+            console.error('[PAYMENT INTERACTION ERROR]', err);
+        }
+        return;
+    }
 });
 
 client.login(CONFIG.TOKEN);
