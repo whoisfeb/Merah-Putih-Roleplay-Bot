@@ -259,7 +259,9 @@ if (interaction.commandName === 'sendtopup') {
 
                     "**4. Pelanggaran Sanksi**\nJika ketahuan melakukan pelanggaran yang berpotensi banned atau berpotensi hilangnya item topup, maka **tidak ada refund** terkait item donate yang hilang.\n\n" +
 
-                    "**5. Larangan RMT**\nDilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned."
+                    "**5. Larangan RMT**\nDilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned.\n\n" +
+
+                    "**6. Pengingat**\nKetika anda melakukan topup kendaraan pastikan slot kendaraan anda masih tersedia jika , karena itu bukan tanggung jawab kami."
 
                 )
 
