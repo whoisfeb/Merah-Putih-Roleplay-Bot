@@ -115,67 +115,69 @@ module.exports = (client) => {
         }
 
         // NEW: LOGIKA /sendtopup (ADMIN -> KIRIM KODE KE USER)
-        if (interaction.commandName === 'sendtopup') {
-            const target = interaction.options.getUser('user');
-            const code = (interaction.options.getString('code') || '').toUpperCase().trim();
-            const note = interaction.options.getString('note') || '';
+        // NEW: LOGIKA /sendtopup (ADMIN -> KIRIM KODE KE USER)
+if (interaction.commandName === 'sendtopup') {
+    const target = interaction.options.getUser('user');
+    const codeRaw = interaction.options.getString('code') || '';
+    const code = codeRaw.trim(); // tidak mengubah isi selain menghapus spasi ujung
+    const note = interaction.options.getString('note') || '';
 
-            const codeRegex = /^MPRP-[A-Z0-9]{4}-[A-Z0-9]{4}$/i;
-            if (!target) {
-                await interaction.editReply({ content: '❌ Target user tidak ditemukan.', flags: 64 }).catch(() => {});
-                return;
-            }
-            if (!codeRegex.test(code)) {
-                await interaction.editReply({ content: '❌ Format kode tidak valid. Contoh: MPRP-65A5-U8ZG', flags: 64 }).catch(() => {});
-                return;
-            }
+    // cek target dan kode tidak kosong — tidak ada pengecekan format lain
+    if (!target) {
+        await interaction.editReply({ content: '❌ Target user tidak ditemukan.', flags: 64 }).catch(() => {});
+        return;
+    }
+    if (!code) {
+        await interaction.editReply({ content: '❌ Kode tidak boleh kosong. Masukkan kode yang diberikan oleh server.', flags: 64 }).catch(() => {});
+        return;
+    }
 
-            // Pesan DM yang dikirim ke user (ubah sesuai gaya server Anda)
-            const dmText = `Hai ${target.username},\n\nTop-up Anda telah berhasil diproses dan sudah siap untuk diklaim.\nGunakan perintah di dalam game: /redeem ${code}\n\nJangan bagikan kode ini kepada siapapun. Jika mengalami kendala, silakan hubungi staf kami.\n\n— Merah Putih Roleplay`;
+    // Pesan DM yang dikirim ke user (ubah sesuai gaya server Anda)
+    const dmText = `Hai ${target.username},\n\nTop-up Anda telah berhasil diproses dan sudah siap untuk diklaim.\nGunakan perintah di dalam game: /redeem ${code}\n\nJangan bagikan kode ini kepada siapapun. Jika mengalami kendala, silakan hubungi staf kami.\n\n— Merah Putih Roleplay`;
 
-            const dmEmbed = new EmbedBuilder()
-                .setTitle('Top-up Berhasil ✅')
-                .setDescription(`Kode: \`${code}\`\n\nSilakan gunakan perintah: \`/redeem ${code}\` di dalam game.`)
-                .addFields({ name: 'Catatan', value: note || '—' })
-                .setColor('#2ecc71')
-                .setTimestamp();
+    const dmEmbed = new EmbedBuilder()
+        .setTitle('Top-up Berhasil ✅')
+        .setDescription(`Kode: \`${code}\`\n\nSilakan gunakan perintah: \`/redeem ${code}\` di dalam game.`)
+        .addFields({ name: 'Catatan', value: note || '—' })
+        .setColor('#2ecc71')
+        .setTimestamp();
 
-            let dmSucceeded = true;
-            try {
-                await target.send({ content: dmText, embeds: [dmEmbed] });
-            } catch (err) {
-                console.error('Gagal mengirim DM di /sendtopup:', err);
-                dmSucceeded = false;
-            }
+    let dmSucceeded = true;
+    try {
+        await target.send({ content: dmText, embeds: [dmEmbed] });
+    } catch (err) {
+        console.error('Gagal mengirim DM di /sendtopup:', err);
+        dmSucceeded = false;
+    }
 
-            // Fallback jika DM gagal: kirim di channel saat ini (channel tiket)
-            if (!dmSucceeded) {
-                try {
-                    await interaction.channel.send({ content: `<@${target.id}> Saya tidak dapat mengirim DM. Pesan untuk Anda:\n\n${dmText}` });
-                } catch (e) {
-                    console.error('Gagal fallback kirim di channel:', e);
-                }
-            }
-
-            // Balas ke admin pengirim secara ephemeral (sudah deferred)
-            try {
-                await interaction.editReply({ content: `✅ Kode ${code} berhasil dikirim ke ${target.tag} ${dmSucceeded ? '(via DM)' : '(fallback ke channel)'}`, flags: 64 });
-            } catch (e) {
-                console.error('Gagal editReply sendtopup:', e);
-            }
-
-            // Opsional: log ke logChannel
-            try {
-                const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
-                if (logChannel) {
-                    await logChannel.send({
-                        content: `📤 **/sendtopup** oleh ${interaction.user.tag}\nKe: ${target.tag}\nKode: ${code}\nCatatan: ${note || '-'}`
-                    });
-                }
-            } catch (e) { console.error('Gagal kirim log sendtopup:', e); }
-
-            return;
+    // Fallback jika DM gagal: kirim di channel saat ini (channel tiket)
+    if (!dmSucceeded) {
+        try {
+            await interaction.channel.send({ content: `<@${target.id}> Saya tidak dapat mengirim DM. Pesan untuk Anda:\n\n${dmText}` });
+        } catch (e) {
+            console.error('Gagal fallback kirim di channel:', e);
         }
+    }
+
+    // Balas ke admin pengirim secara ephemeral (sudah deferred)
+    try {
+        await interaction.editReply({ content: `✅ Kode ${code} berhasil dikirim ke ${target.tag} ${dmSucceeded ? '(via DM)' : '(fallback ke channel)'}`, flags: 64 });
+    } catch (e) {
+        console.error('Gagal editReply sendtopup:', e);
+    }
+
+    // Opsional: log ke logChannel
+    try {
+        const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+        if (logChannel) {
+            await logChannel.send({
+                content: `📤 **/sendtopup** oleh ${interaction.user.tag}\nKe: ${target.tag}\nKode: ${code}\nCatatan: ${note || '-'}`
+            });
+        }
+    } catch (e) { console.error('Gagal kirim log sendtopup:', e); }
+
+    return;
+}
 
         // 1. LOGIKA CLAIMTOPUP = SELESAI DENGAN LOG
         if (interaction.commandName === 'claimtopup') {
