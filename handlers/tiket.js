@@ -171,7 +171,7 @@ if (interaction.commandName === 'sendtopup') {
         const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
         if (logChannel) {
             await logChannel.send({
-                content: `📤 **/sendtopup** oleh ${interaction.user.tag}\nKe: ${target.tag}\nKode: ${code}\nCatatan: ${note || '-'}`
+                content: `📤 **/sendtopup** oleh ${interaction.user.tag}\nKe: <@${target.id}> (${target.tag})\nKode: ${code}\nCatatan: ${note || '-'}`
             });
         }
     } catch (e) { console.error('Gagal kirim log sendtopup:', e); }
@@ -191,8 +191,15 @@ if (interaction.commandName === 'sendtopup') {
             if (logChannel) {
                 const buffer = Buffer.from(logContent, 'utf-8');
                 const attachment = new AttachmentBuilder(buffer, { name: `${interaction.channel.name}-log.txt` });
+                
+                // Ambil user ID dari channel (user yang buat tiket)
+                const ticketOwnerPerm = interaction.channel.permissionOverwrites.cache.find(
+                    perm => perm.type === 'member' && perm.allow.has(PermissionsBitField.Flags.ViewChannel)
+                );
+                const ticketOwnerId = ticketOwnerPerm?.id;
+                
                 await logChannel.send({
-                    content: `✅ **TIKET SELESAI (via /claimtopup)**: Channel **${interaction.channel.name}** ditutup oleh ${interaction.user}.\n**Alasan:** ${reason}`,
+                    content: `✅ **TIKET SELESAI (via /claimtopup)**: Channel **${interaction.channel.name}** ditutup oleh ${interaction.user}${ticketOwnerId ? ` | User: <@${ticketOwnerId}>` : ''}.\n**Alasan:** ${reason}`,
                     files: [attachment]
                 }).catch(err => console.error('Gagal kirim log ke logChannel:', err));
             }
@@ -465,19 +472,19 @@ if (interaction.commandName === 'sendtopup') {
                 const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
 
                 if (logChannel) {
-
                     const buffer = Buffer.from(logContent, 'utf-8');
-
                     const attachment = new AttachmentBuilder(buffer, { name: `${interaction.channel.name}-log.txt` });
-
+                    
+                    // Ambil user ID dari channel (user yang buat tiket)
+                    const ticketOwnerPerm = interaction.channel.permissionOverwrites.cache.find(
+                        perm => perm.type === 'member' && perm.allow.has(PermissionsBitField.Flags.ViewChannel)
+                    );
+                    const ticketOwnerId = ticketOwnerPerm?.id;
+                    
                     await logChannel.send({
-
-                        content: `✅ **TIKET SELESAI**: Channel **${interaction.channel.name}** ditutup oleh ${interaction.user}.`,
-
+                        content: `✅ **TIKET SELESAI**: Channel **${interaction.channel.name}** ditutup oleh ${interaction.user}${ticketOwnerId ? ` | User: <@${ticketOwnerId}>` : ''}.`,
                         files: [attachment]
-
                     }).catch(err => console.error('Gagal kirim log ke channel:', err));
-
                 }
 
 
