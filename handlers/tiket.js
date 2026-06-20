@@ -357,6 +357,7 @@ if (interaction.commandName === 'sendtopup') {
                     name: channelName,
                     type: ChannelType.GuildText,
                     parent: CATEGORY_ID,
+                    topic: `user_id:${interaction.user.id}`, // ✅ TAMBAHKAN BARIS INI
                     permissionOverwrites: [
                         { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
                         { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.AttachFiles] },
