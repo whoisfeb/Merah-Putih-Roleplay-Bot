@@ -261,7 +261,7 @@ if (interaction.commandName === 'sendtopup') {
 
                     "**5. Larangan RMT**\nDilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned.\n\n" +
 
-                    "**6. Pengingat**\nKetika anda melakukan topup kendaraan pastikan slot kendaraan anda masih tersedia jika , karena itu bukan tanggung jawab kami."
+                    "**6. Pengingat**\nKetika anda melakukan topup kendaraan pastikan slot kendaraan anda masih tersedia jika anda melakukan topup kendaraan namun anda tidak memiliki slot kendaraan yang cukup sehingga mengakibatkan redeem topup hangus itu bukan tanggung jawab kami."
 
                 )
 
