@@ -19,7 +19,11 @@ module.exports = async (interaction, CONFIG) => {
             interaction.isChatInputCommand() &&
             interaction.commandName === 'payment'
         ) {
-            // ✅ Sudah auto-deferred di index.js
+
+            // ✅ DEFER DULU (PENTING - SEBELUM APAPUN)
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.deferReply({ flags: 64 });
+            }
 
             // BARU CEK ROLE
             const hasAdminRole = interaction.member.roles.cache.some(role =>
@@ -155,9 +159,9 @@ COMING SOON
                 .setFooter({ text: 'Community Store - Jika ada kendala, hubungi admin!' })
                 .setTimestamp();
 
-            await interaction.editReply({
+            await interaction.reply({
                 embeds: [embed],
-                components: []
+                flags: 0
             });
 
             return true;
@@ -259,9 +263,9 @@ COMING SOON
                 .setFooter({ text: 'Ottibonynyo Mods • Instant & Aman!' })
                 .setTimestamp();
 
-            await interaction.editReply({
+            await interaction.reply({
                 embeds: [embed],
-                components: []
+                flags: 0
             });
 
             return true;
@@ -345,19 +349,19 @@ COMING SOON
 
             if (!fs.existsSync(qrisPath)) {
 
-                return interaction.editReply({
+                return interaction.reply({
                     content: `❌ File QRIS tidak ditemukan.\nPath: \`${qrisPath}\``,
-                    components: []
+                    flags: 64
                 });
 
             }
 
             const qris = new AttachmentBuilder(qrisPath);
 
-            await interaction.editReply({
+            await interaction.reply({
                 embeds: [embed],
                 files: [qris],
-                components: []
+                flags: 0
             });
 
             return true;
@@ -371,9 +375,20 @@ COMING SOON
 
         try {
 
-            await interaction.editReply({
-                content: '❌ Terjadi kesalahan saat memproses payment.'
-            });
+            if (!interaction.replied && !interaction.deferred) {
+
+                await interaction.reply({
+                    content: '❌ Terjadi kesalahan saat memproses payment.',
+                    flags: 64
+                });
+
+            } else {
+
+                await interaction.editReply({
+                    content: '❌ Terjadi kesalahan saat memproses payment.'
+                });
+
+            }
 
         } catch (_) {}
 

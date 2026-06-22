@@ -119,9 +119,11 @@ module.exports = (client) => {
         // =======================================================
         if (interaction.isChatInputCommand()) {
             if (interaction.commandName === 'addticket') {
-                // ✅ Sudah auto-deferred di index.js
-
                 try {
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.deferReply({ ephemeral: true });
+                    }
+
                     if (!isAdmin(interaction)) {
                         return await interaction.editReply({
                             content: '❌ Hanya Admin yang boleh menggunakan perintah ini!'
@@ -149,9 +151,16 @@ module.exports = (client) => {
                 } catch (error) {
                     console.error('[UNBAN HANDLER] Error addticket:', error);
                     try {
-                        await interaction.editReply({
-                            content: '❌ Gagal menambahkan pengguna. Pastikan bot memiliki izin mengatur channel!'
-                        });
+                        if (interaction.deferred || interaction.replied) {
+                            await interaction.editReply({
+                                content: '❌ Gagal menambahkan pengguna. Pastikan bot memiliki izin mengatur channel!'
+                            });
+                        } else {
+                            await interaction.reply({
+                                content: '❌ Gagal menambahkan pengguna. Pastikan bot memiliki izin mengatur channel!',
+                                ephemeral: true
+                            });
+                        }
                     } catch (e) {
                         console.error('[UNBAN HANDLER] Gagal error reply addticket:', e);
                     }
