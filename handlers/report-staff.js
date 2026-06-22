@@ -1,10 +1,14 @@
-// handlers/report-staff.js
 /**
- * Report staff handler — defaults auto-use role "Merah Putih Team".
- * Call: reportStaffHandler(client)  // index.js cukup memanggil ini
+ * handlers/report-staff.js
  *
- * You can still pass CONFIG to override defaults:
- * reportStaffHandler(client, { USE_DYNAMIC_STAFF: false, STAFF_ROLE_ID: 'id', ... })
+ * Usage:
+ *   const reportStaffHandler = require('./handlers/report-staff');
+ *   reportStaffHandler(client); // index.js cukup memanggil ini
+ *
+ * Notes:
+ * - Default STAFF_ROLE_ID is set (recommended). You can override by calling
+ *   reportStaffHandler(client, { STAFF_ROLE_ID: '...', USE_DYNAMIC_STAFF: true, ... })
+ * - Make sure "Server Members Intent" is enabled for your bot in Developer Portal.
  */
 
 const {
@@ -18,6 +22,7 @@ const {
   EmbedBuilder,
   ChannelType,
   PermissionFlagsBits,
+  PermissionsBitField,
 } = require('discord.js');
 
 const DEFAULT_CATEGORY_ID = '1392382458871156816';
@@ -30,11 +35,12 @@ const DEFAULT_ADMIN_ROLE_IDS = [
 ];
 const DEFAULT_PREFIX = '!';
 
-// DEFAULT: use dynamic staff and role name to auto-detect
+// Prefer role ID (recommended). Replace with your real Merah Putih Team role ID if you want.
 const DEFAULT_USE_DYNAMIC_STAFF = true;
-const DEFAULT_STAFF_ROLE_NAME = 'Merah Putih Team';
-const DEFAULT_STAFF_ROLE_ID = null; // leave null if you prefer name lookup
+const DEFAULT_STAFF_ROLE_ID = '1392382455876550799'; // <-- ganti jika perlu
+const DEFAULT_STAFF_ROLE_NAME = 'Merah Putih Team'; // fallback if ID not found
 
+// temporary in-memory cache for modal submissions
 const temporaryReportCache = new Map();
 
 module.exports = function reportStaffHandler(client, CONFIG = {}) {
@@ -50,9 +56,12 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
   const STAFF_ROLE_ID = CONFIG.STAFF_ROLE_ID ?? DEFAULT_STAFF_ROLE_ID;
   const STAFF_ROLE_NAME = CONFIG.STAFF_ROLE_NAME ?? DEFAULT_STAFF_ROLE_NAME;
 
+  // -----------------------------
+  // INTERACTIONS (buttons / modal / select)
+  // -----------------------------
   client.on('interactionCreate', async (interaction) => {
     try {
-      // Close button (delete channel). Only admin or selected staff can use.
+      // Close ticket -> delete channel (only admin or selected staff)
       if (interaction.isButton() && interaction.customId === 'btn_close_ticket') {
         const member = interaction.member;
         if (!interaction.channel) return interaction.reply({ content: '❌ Tidak bisa menutup channel ini.', ephemeral: true });
@@ -79,19 +88,49 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
         return;
       }
 
-      // Open modal
+      // Button: open modal (Report Staff)
       if (interaction.isButton() && interaction.customId === 'btn_report_staff') {
         const modal = new ModalBuilder().setCustomId('modal_report_staff').setTitle('Form Laporan Staf');
 
-        const ucpInput = new TextInputBuilder().setCustomId('input_ucp_pelapor').setLabel('UCP Pelapor').setStyle(TextInputStyle.Short).setPlaceholder('Masukkan nama UCP Anda').setRequired(true);
-        const namaPelaporInput = new TextInputBuilder().setCustomId('input_nama_pelapor').setLabel('Nama Pelapor (IC)').setStyle(TextInputStyle.Short).setPlaceholder('Masukkan nama karakter Anda').setRequired(true);
-        const reasonInput = new TextInputBuilder().setCustomId('input_reason').setLabel('Alasan / Kronologi Kejadian').setStyle(TextInputStyle.Paragraph).setPlaceholder('Jelaskan kesalahan atau pelanggaran staf secara rinci').setRequired(true);
+        const ucpInput = new TextInputBuilder()
+          .setCustomId('input_ucp_pelapor')
+          .setLabel('UCP Pelapor')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Masukkan nama UCP Anda')
+          .setRequired(true);
 
-        modal.addComponents(new ActionRowBuilder().addComponents(ucpInput), new ActionRowBuilder().addComponents(namaPelaporInput), new ActionRowBuilder().addComponents(reasonInput));
+        const namaPelaporInput = new TextInputBuilder()
+          .setCustomId('input_nama_pelapor')
+          .setLabel('Nama Pelapor (IC)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Masukkan nama karakter Anda')
+          .setRequired(true);
+
+        const reasonInput = new TextInputBuilder()
+          .setCustomId('input_reason')
+          .setLabel('Alasan / Kronologi Kejadian')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Jelaskan kesalahan atau pelanggaran staf secara rinci')
+          .setRequired(true);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(ucpInput),
+          new ActionRowBuilder().addComponents(namaPelaporInput),
+          new ActionRowBuilder().addComponents(reasonInput)
+        );
         return interaction.showModal(modal);
       }
 
-      // Modal submit -> send select menu (ephemeral)
+      // Button: lihat_rules (optional) -> show ephemeral rules
+      if (interaction.isButton() && interaction.customId === 'lihat_rules') {
+        const rulesEmbed = new EmbedBuilder()
+          .setTitle('📜 Rules Top Up / Laporan Staf')
+          .setDescription('Silakan sertakan bukti yang jelas (screenshot / logs) dan jangan melakukan fitnah. Semua laporan akan ditinjau oleh manajemen.')
+          .setColor('#ffcc00');
+        return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
+      }
+
+      // Modal submitted -> show select menu (ephemeral)
       if (interaction.isModalSubmit() && interaction.customId === 'modal_report_staff') {
         const ucpPelapor = interaction.fields.getTextInputValue('input_ucp_pelapor');
         const namaPelapor = interaction.fields.getTextInputValue('input_nama_pelapor');
@@ -99,24 +138,31 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
 
         temporaryReportCache.set(interaction.user.id, { ucpPelapor, namaPelapor, reason, createdAt: Date.now() });
 
-        const selectMenu = new StringSelectMenuBuilder().setCustomId('select_staff_report').setPlaceholder('Pilih staf (otomatis dari role)');
+        const selectMenu = new StringSelectMenuBuilder()
+          .setCustomId('select_staff_report')
+          .setPlaceholder('Pilih staf (otomatis dari role)');
 
         let options = [];
+        let tooManyMembers = false;
+        let resolvedRoleInfo = 'NOT FOUND';
 
         if (USE_DYNAMIC_STAFF && interaction.guild) {
-          // Try resolve role by ID first, then by name
           let role = null;
           try {
             if (STAFF_ROLE_ID) {
+              // try cache then fetch
               role = interaction.guild.roles.cache.get(STAFF_ROLE_ID) || (await interaction.guild.roles.fetch(STAFF_ROLE_ID).catch(() => null));
             }
-          } catch {}
+          } catch (e) {
+            // ignore
+          }
           if (!role && STAFF_ROLE_NAME) role = interaction.guild.roles.cache.find((r) => r.name === STAFF_ROLE_NAME);
 
-          console.log('[report-staff] resolved role:', role ? `${role.name} (${role.id})` : 'NOT FOUND');
+          resolvedRoleInfo = role ? `${role.name} (${role.id})` : 'NOT FOUND';
+          console.log('[report-staff] resolved role:', resolvedRoleInfo);
 
           if (role) {
-            // Best-effort fetch members so role.members is populated (requires Server Members Intent enabled)
+            // best-effort fetch members (requires Server Members Intent enabled in Developer Portal)
             try {
               await interaction.guild.members.fetch();
             } catch (e) {
@@ -127,7 +173,8 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
             console.log('[report-staff] role.members (cached) count =', members.length);
 
             if (members.length > 0) {
-              const limited = members.slice(0, 25); // discord limit
+              if (members.length > 25) tooManyMembers = true;
+              const limited = members.slice(0, 25);
               options = limited.map((m) => ({ label: (m.nickname || m.user.username).slice(0, 100), value: m.id }));
             }
           }
@@ -140,10 +187,17 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
         selectMenu.addOptions(options);
         const row = new ActionRowBuilder().addComponents(selectMenu);
 
-        return interaction.reply({ content: `✅ Data diterima.\n**UCP:** ${ucpPelapor}\n**Nama:** ${namaPelapor}\nSilakan pilih staf yang dilaporkan:`, components: [row], ephemeral: true });
+        let replyContent = `✅ Data diterima.\n**UCP:** ${ucpPelapor}\n**Nama:** ${namaPelapor}\nSilakan pilih staf yang dilaporkan:`;
+        if (tooManyMembers) {
+          replyContent += `\n\n⚠️ Role memiliki lebih dari 25 anggota — hanya 25 pertama yang ditampilkan. Jika nama staf tidak ada, sebutkan staf di tiket setelah dibuat.`;
+        }
+
+        console.log(`[report-staff] prepared select (role=${resolvedRoleInfo}, options=${options.length}${tooManyMembers ? ', truncated' : ''})`);
+
+        return interaction.reply({ content: replyContent, components: [row], ephemeral: true });
       }
 
-      // Select -> create ticket, add perms
+      // Select chosen -> create ticket and set perms
       if (interaction.isStringSelectMenu() && interaction.customId === 'select_staff_report') {
         await interaction.deferReply({ ephemeral: true });
 
@@ -163,17 +217,25 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
             { id: interaction.user.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
           ];
 
+          // grant admin roles
           for (const roleId of ADMIN_ROLE_IDS) {
             if (roleId && !String(roleId).startsWith('TARUH_ID_ROLE')) {
-              permissionOverwrites.push({ id: roleId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
+              permissionOverwrites.push({
+                id: roleId,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+              });
             }
           }
 
+          // add selected staff permissions (if numeric ids)
           const addedStaffIds = [];
           for (const v of selectedValues) {
             if (/^\d{17,19}$/.test(v)) {
               addedStaffIds.push(v);
-              permissionOverwrites.push({ id: v, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
+              permissionOverwrites.push({
+                id: v,
+                allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory],
+              });
             }
           }
 
@@ -189,11 +251,13 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
           if (addedStaffIds.length) topicParts.push(`staff:${addedStaffIds.join(',')}`);
           await ticketChannel.setTopic(topicParts.join(' '));
 
-          const reportedDisplay = selectedValues.map((v) => {
-            if (/^\d{17,19}$/.test(v)) return `<@${v}>`;
-            if (v === 'no_staff') return '`Tidak tersedia`';
-            return `**${v}**`;
-          }).join(', ');
+          const reportedDisplay = selectedValues
+            .map((v) => {
+              if (/^\d{17,19}$/.test(v)) return `<@${v}>`;
+              if (v === 'no_staff') return '`Tidak tersedia`';
+              return `**${v}**`;
+            })
+            .join(', ');
 
           const ticketEmbed = new EmbedBuilder()
             .setTitle('🎫 TIKET LAPORAN STAF BARU')
@@ -210,8 +274,9 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
             .setFooter({ text: 'Sistem Tiket Laporan Otomatis' });
 
           const adminMentions = ADMIN_ROLE_IDS.filter((id) => id && !String(id).startsWith('TARUH_ID_ROLE')).map((id) => `<@&${id}>`).join(' ');
-
-          const closeRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('btn_close_ticket').setLabel('Close Ticket').setStyle(ButtonStyle.Danger));
+          const closeRow = new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId('btn_close_ticket').setLabel('Close Ticket').setStyle(ButtonStyle.Danger)
+          );
 
           await ticketChannel.send({ content: `👋 ${adminMentions} • ${interaction.user}`, embeds: [ticketEmbed], components: [closeRow] });
 
@@ -219,16 +284,25 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
           return interaction.editReply({ content: `🎉 Channel tiket dibuat: ${ticketChannel}`, components: [] });
         } catch (err) {
           console.error('Gagal membuat channel tiket:', err);
-          return interaction.editReply({ content: '❌ Terjadi kesalahan saat mencoba membuat channel tiket baru. Pastikan Bot memiliki izin Manage Channels dan permissionOverwrites.', components: [] });
+          return interaction.editReply({
+            content: '❌ Terjadi kesalahan saat mencoba membuat channel tiket baru. Pastikan Bot memiliki izin Manage Channels dan permissionOverwrites.',
+            components: [],
+          });
         }
       }
     } catch (err) {
       console.error('Error in report-staff interaction handler:', err);
-      try { if (interaction && interaction.isRepliable && !interaction.replied) await interaction.reply({ content: '❌ Terjadi error internal pada handler laporan staf.', ephemeral: true }); } catch {}
+      try {
+        if (interaction && interaction.isRepliable && !interaction.replied) {
+          await interaction.reply({ content: '❌ Terjadi error internal pada handler laporan staf.', ephemeral: true });
+        }
+      } catch {}
     }
   });
 
-  // prefix commands
+  // -----------------------------
+  // PREFIX COMMANDS (messageCreate)
+  // -----------------------------
   client.on('messageCreate', async (message) => {
     try {
       if (message.author.bot) return;
@@ -238,17 +312,34 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
       const [rawCmd, ...args] = message.content.slice(PREFIX.length).trim().split(/\s+/);
       const cmd = rawCmd.toLowerCase();
 
+      // Setup (simple admin-only command as you requested)
       if (cmd === 'setup-report-staff') {
-        const isAdmin = message.member.roles.cache.some((r) => ADMIN_ROLE_IDS.includes(r.id));
-        if (!isAdmin) return message.reply({ content: 'Anda tidak memiliki izin (harus mempunyai role admin) untuk menggunakan perintah ini.' });
+        // require Administrator permission
+        if (!message.member || !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+          return message.reply({ content: 'Anda tidak memiliki izin (Administrator) untuk menggunakan perintah ini.' });
+        }
 
-        const embed = new EmbedBuilder().setTitle('Lapor Staf').setDescription('Klik tombol di bawah jika Anda ingin membuat laporan staf (tiket).').setColor('#ff9900');
-        const row = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('btn_report_staff').setLabel('Report Staff').setStyle(ButtonStyle.Primary));
+        const embed = new EmbedBuilder()
+          .setTitle('🔕 Merah Putih Roleplay - Report Staff')
+          .setDescription('Silakan klik tombol di bawah untuk memulai proses laporan staf')
+          .setColor('#ff0000')
+          .setFooter({ text: 'Ottibonynyo Mods | Merah Putih' });
 
-        try { await message.channel.send({ embeds: [embed], components: [row] }); return; } catch (err) { console.error('Gagal mem-post tombol report:', err); return message.reply({ content: '❌ Gagal mem-post tombol. Pastikan bot memiliki izin Send Messages dan Embed Links.' }); }
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('btn_report_staff').setLabel('Buka Tiket').setEmoji('🔕').setStyle(ButtonStyle.Primary)
+        );
+
+        try {
+          await message.channel.send({ embeds: [embed], components: [row] });
+          // optionally delete the setup command to keep channel clean
+          if (message.deletable) await message.delete().catch(() => {});
+        } catch (err) {
+          console.error('Gagal mengirim setup tiket:', err);
+        }
+        return;
       }
 
-      // other ticket commands omitted for brevity (kept in original implementation)
+      // (other ticket management prefix commands can be re-added if needed)
     } catch (err) {
       console.error('Error in report-staff message handler:', err);
     }
