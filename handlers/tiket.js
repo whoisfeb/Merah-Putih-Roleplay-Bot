@@ -85,9 +85,7 @@ module.exports = (client) => {
         if (interaction.isChatInputCommand()) {
 
     // ✅ TAMBAHKAN INI DI AWAL - Skip command yang ditangani di handler lain
-    if (['addrole', 'removerole'].includes(interaction.commandName)) {
-        return; // Biarkan commands.js handle
-    }
+    if (!['claimtopup', 'closetopup', 'sendtopup'].includes(interaction.commandName)) return;
 
     // ✅ Hanya defer untuk command tiket saja
     try {
