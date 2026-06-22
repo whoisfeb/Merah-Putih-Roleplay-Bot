@@ -309,7 +309,7 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
 
           const ticketEmbed = new EmbedBuilder()
             .setTitle('🎫 TIKET LAPORAN STAF BARU')
-            .setDescription(`Halo ${interaction.user}, silakan tunggu tanggapan dari pihak Manajemen Senior di channel ini.`)
+            .setDescription(`Halo ${interaction.user}, silakan tunggu tanggapan dari pihak ${adminMentions} untuk menindak lanjuti laporan anda.`)
             .setColor('#ff9900')
             .addFields(
               { name: '👤 Akun Discord Pelapor', value: `${interaction.user} (${interaction.user.tag})`, inline: false },
