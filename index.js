@@ -264,6 +264,7 @@ client.once('ready', async () => {
     ticketHandler(client);
     unbanHandler(client);
     setupAutoKarantinaHandler(client);
+    reportStaffHandler(client);
 
     setInterval(() => {
         const announceChannel = client.channels.cache.get(CONFIG.ANNOUNCE_CHANNEL);
