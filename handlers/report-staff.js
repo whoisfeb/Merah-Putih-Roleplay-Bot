@@ -32,11 +32,7 @@ const {
 
 const DEFAULT_CATEGORY_ID = '1392382458871156816';
 const DEFAULT_ADMIN_ROLE_IDS = [
-  '1392382455981412398',
-  '1392382455981412399',
-  '1392382455981412393',
-  '1392382455981412397',
-  '1392382455981412396',
+  '1514189664863518811',
 ];
 const DEFAULT_PREFIX = '!';
 
@@ -304,7 +300,7 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
           const adminMentions = ADMIN_ROLE_IDS.filter((id) => id && !String(id).startsWith('TARUH_ID_ROLE')).map((id) => `<@&${id}>`).join(' ');
           const closeRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('btn_close_ticket').setLabel('Close Ticket').setStyle(ButtonStyle.Danger));
 
-          await ticketChannel.send({ content: `👋 ${adminMentions} • ${interaction.user}`, embeds: [ticketEmbed], components: [closeRow] });
+          await ticketChannel.send({ content: `Halo ${interaction.user} silahkan tunggu respon dari ${adminMentions} untuk tindak lanjut dari laporan anda`, embeds: [ticketEmbed], components: [closeRow] });
 
           // cleanup
           paginationSessions.delete(interaction.user.id);
