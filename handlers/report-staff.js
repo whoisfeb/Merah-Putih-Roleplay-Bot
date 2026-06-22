@@ -34,7 +34,7 @@ const {
 // === CONFIG DEFAULTS (ganti sesuai server Anda jika perlu) ===
 const DEFAULT_CATEGORY_ID = '1392382458871156816';
 const DEFAULT_ADMIN_ROLE_IDS = [
-  '1514189664863518811',
+  '1392382455981412393',
 ];
 const DEFAULT_PREFIX = '!';
 
