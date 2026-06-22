@@ -4,7 +4,7 @@
  * - Modal -> dynamic role-based staff list with paging (Prev/Next)
  * - Select menu shows up to 25 options per page; use Prev/Next to navigate
  * - Selected staff are added to ticket permissions
- * - Close button deletes the channel; only admin or selected staff can use it
+ * - Close button deletes the channel; only members with roles in DEFAULT_ADMIN_ROLE_IDS can use it
  * - Setup command: !setup-tiket (Administrator only) posts the Report Staff button
  *
  * Usage:
@@ -135,16 +135,10 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
         const member = interaction.member;
         if (!interaction.channel) return interaction.reply({ content: '❌ Tidak bisa menutup channel ini.', ephemeral: true });
 
-        const topic = interaction.channel.topic || '';
-        let staffIds = [];
-        const mStaff = topic.match(/staff:([0-9,]+)/);
-        if (mStaff) staffIds = mStaff[1].split(',').filter(Boolean);
-
-        const isAdmin = member.roles.cache.some((r) => ADMIN_ROLE_IDS.includes(r.id));
-        const isSelectedStaff = staffIds.includes(interaction.user.id);
-
-        if (!isAdmin && !isSelectedStaff) {
-          return interaction.reply({ content: '❌ Hanya admin atau staf yang dipilih yang dapat menutup tiket ini.', ephemeral: true });
+        // ONLY admin roles (no staff-selected override)
+        const isAdminByRole = member && member.roles && member.roles.cache.some((r) => ADMIN_ROLE_IDS.includes(r.id));
+        if (!isAdminByRole) {
+          return interaction.reply({ content: '❌ Hanya admin yang dapat menutup tiket ini.', ephemeral: true });
         }
 
         try {
@@ -169,6 +163,14 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
         return interaction.showModal(modal);
       }
 
+      // Button: lihat_rules
+      if (interaction.isButton() && interaction.customId === 'lihat_rules') {
+        const rulesEmbed = new EmbedBuilder()
+          .setTitle('📜 Rules Laporan Staf')
+          .setDescription('Silakan sertakan bukti yang jelas (screenshot / logs) dan jangan melakukan fitnah. Semua laporan akan ditinjau oleh manajemen.')
+          .setColor('#ffcc00');
+        return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
+      }
 
       // ----- Modal submit: prepare paged select menu (ephemeral) -----
       if (interaction.isModalSubmit() && interaction.customId === 'modal_report_staff') {
