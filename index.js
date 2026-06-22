@@ -282,21 +282,98 @@ client.once('ready', async () => {
 client.on('messageCreate', async (message) => {
     await antiLinkHandler(message, CONFIG);
     await messageMonitorHandler(message, CONFIG);
-
 });
 
-// PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
+// ==========================================
+// INTERACTION HANDLER (LENGKAP & FIXED)
+// ==========================================
 client.on('interactionCreate', async (interaction) => {
-    // If it's a payment-related interaction, handle it IMMEDIATELY
-    // before any other async operations
-    if ((interaction.isChatInputCommand() && interaction.commandName === 'payment') ||
-        (interaction.isButton() && ['pay_bank_info', 'pay_gopay_info', 'pay_qris_info'].includes(interaction.customId))) {
+    // 🔴 STEP 1: DEFER UNIVERSAL (untuk semua interaction)
+    // Dijamin respond dalam < 3 detik
+    if (!interaction.replied && !interaction.deferred) {
         try {
-            await paymentHandler(interaction, CONFIG);
+            await interaction.deferReply({ flags: 64 }).catch(err => {
+                if (err.code === 10062) {
+                    console.warn(`[TIMEOUT] Interaction expired sebelum defer: ${interaction.commandName || interaction.customId}`);
+                    return;
+                }
+                throw err;
+            });
         } catch (err) {
-            console.error('[PAYMENT INTERACTION ERROR]', err);
+            console.error('[DEFER FAILED]', err.code, err.message);
+            return;
         }
-        return;
+    }
+
+    try {
+        // 🟡 STEP 2: ROUTE KE HANDLER YANG SESUAI
+
+        // ✅ PAYMENT COMMAND
+        if (interaction.isChatInputCommand() && interaction.commandName === 'payment') {
+            return await paymentHandler(interaction, CONFIG);
+        }
+
+        // ✅ PAYMENT BUTTONS
+        if (interaction.isButton() && ['pay_bank_info', 'pay_gopay_info', 'pay_qris_info'].includes(interaction.customId)) {
+            return await paymentHandler(interaction, CONFIG);
+        }
+
+        // ✅ ROLE COMMANDS (addrole, removerole)
+        if (interaction.isChatInputCommand() && ['addrole', 'removerole'].includes(interaction.commandName)) {
+            return await setupCommandsHandler(interaction, CONFIG);
+        }
+
+        // ✅ TIKET-UNBAN COMMANDS (addticket)
+        if (interaction.isChatInputCommand() && interaction.commandName === 'addticket') {
+            return await unbanHandler(interaction, CONFIG);
+        }
+
+        // ✅ TIKET COMMANDS (claimtopup, closetopup, sendtopup)
+        if (interaction.isChatInputCommand() && ['claimtopup', 'closetopup', 'sendtopup'].includes(interaction.commandName)) {
+            return await ticketHandler(interaction, CONFIG);
+        }
+
+        // ✅ TIKET BUTTONS (jika ada)
+        if (interaction.isButton() && interaction.customId?.startsWith('tiket_')) {
+            return await ticketHandler(interaction, CONFIG);
+        }
+
+        // ✅ UNBAN BUTTONS (jika ada)
+        if (interaction.isButton() && interaction.customId?.startsWith('unban_')) {
+            return await unbanHandler(interaction, CONFIG);
+        }
+
+        // ✅ REPORT BUTTONS (jika ada)
+        if (interaction.isButton() && interaction.customId?.startsWith('report_')) {
+            return await reportStaffHandler(interaction, CONFIG);
+        }
+
+        // ✅ MODAL SUBMIT (jika ada form/modal)
+        if (interaction.isModalSubmit()) {
+            console.log(`[MODAL SUBMIT] ${interaction.customId}`);
+            // Bisa di-route ke handler spesifik jika diperlukan
+            return;
+        }
+
+        // ✅ SELECT MENU (jika ada dropdown)
+        if (interaction.isStringSelectMenu()) {
+            console.log(`[SELECT MENU] ${interaction.customId}`);
+            // Bisa di-route ke handler spesifik jika diperlukan
+            return;
+        }
+
+        // Kalau tidak match apapun
+        console.warn(`[UNHANDLED INTERACTION] Command: ${interaction.commandName} | CustomID: ${interaction.customId}`);
+
+    } catch (err) {
+        console.error('[INTERACTION HANDLER ERROR]', err);
+        try {
+            await interaction.editReply({ 
+                content: '❌ Terjadi kesalahan. Coba lagi nanti.' 
+            });
+        } catch (editErr) {
+            console.error('[EDIT REPLY FAILED]', editErr.code, editErr.message);
+        }
     }
 });
 

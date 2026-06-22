@@ -25,27 +25,6 @@ const ALLOWED_ADMIN_ROLES = [
     '1392382455981412396'
 ];
 
-// Helper aman untuk membalas interaksi
-async function safeReply(interaction, options = {}) {
-    try {
-        if (interaction.replied || interaction.deferred) {
-            return await interaction.followUp(options);
-        } else {
-            return await interaction.reply(options);
-        }
-    } catch (err) {
-        console.error('safeReply gagal:', err);
-        try {
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.deferReply({ flags: 64 });
-            }
-            await interaction.editReply({ content: options.content || 'Terjadi error saat mengirim balasan.' });
-        } catch (e) {
-            console.error('safeReply fallback gagal:', e);
-        }
-    }
-}
-
 module.exports = (client) => {
     // --- PANEL UTAMA SETUP ---
     client.on('messageCreate', async (message) => {
@@ -80,286 +59,203 @@ module.exports = (client) => {
 
     client.on('interactionCreate', async (interaction) => {
 
-        // --- LOGIKA SLASH COMMAND (/claimtopup, /closetopup) ---
+        // --- LOGIKA SLASH COMMAND (/claimtopup, /closetopup, /sendtopup) ---
 
         if (interaction.isChatInputCommand()) {
-
-    // ✅ TAMBAHKAN INI DI AWAL - Skip command yang ditangani di handler lain
-    if (['addrole', 'removerole'].includes(interaction.commandName)) {
-        return; // Biarkan commands.js handle
-    }
-
-    // ✅ Hanya defer untuk command tiket saja
-    try {
-        if (!interaction.replied && !interaction.deferred) {
-            await interaction.deferReply({ flags: 64 });
-        }
-    } catch (err) {
-        console.error('Gagal deferReply di slash command tiket.js:', err);
-        try { 
-            if (!interaction.replied) await interaction.followUp({ content: '❌ Terjadi kesalahan. Coba lagi nanti.', flags: 64 }); 
-        } catch {}
-        return;
-    }
-
-    try {
-        // Filter keamanan 1: Cek Admin
-        const isAdmin = interaction.member && interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
-        if (!isAdmin) {
-            return await safeReply(interaction, { content: '❌ Hanya Admin!', flags: 64 });
-        }
-
-        // Filter keamanan 2: Hanya bisa digunakan di channel tiket
-        if (!interaction.channel || !interaction.channel.name || !interaction.channel.name.startsWith('tiket-')) {
-            return await safeReply(interaction, { content: '❌ Command ini hanya bisa digunakan di dalam channel tiket!', flags: 64 });
-        }
-
-        // NEW: LOGIKA /sendtopup (ADMIN -> KIRIM KODE KE USER)
-        // NEW: LOGIKA /sendtopup (ADMIN -> KIRIM KODE KE USER)
-if (interaction.commandName === 'sendtopup') {
-    const target = interaction.options.getUser('user');
-    const codeRaw = interaction.options.getString('code') || '';
-    const code = codeRaw.trim(); // tidak mengubah isi selain menghapus spasi ujung
-    const note = interaction.options.getString('note') || '';
-
-    // cek target dan kode tidak kosong — tidak ada pengecekan format lain
-    if (!target) {
-        await interaction.editReply({ content: '❌ Target user tidak ditemukan.', flags: 64 }).catch(() => {});
-        return;
-    }
-    if (!code) {
-        await interaction.editReply({ content: '❌ Kode tidak boleh kosong. Masukkan kode yang diberikan oleh server.', flags: 64 }).catch(() => {});
-        return;
-    }
-
-    // Pesan DM yang dikirim ke user (ubah sesuai gaya server Anda)
-    const dmText = `Hai ${target.username},\n\nTop-up Anda telah berhasil diproses dan sudah siap untuk diklaim.\nGunakan perintah di dalam game: /redeem ${code}\n\nJangan bagikan kode ini kepada siapapun. Jika mengalami kendala, silakan hubungi staf kami.\n\n— Merah Putih Roleplay`;
-
-    const dmEmbed = new EmbedBuilder()
-        .setTitle('Top-up Berhasil ✅')
-        .setDescription(`Kode: \`${code}\`\n\nSilakan gunakan perintah: \`/redeem ${code}\` di dalam game.`)
-        .addFields({ name: 'Catatan', value: note || '—' })
-        .setColor('#2ecc71')
-        .setTimestamp();
-
-    let dmSucceeded = true;
-    try {
-        await target.send({ content: dmText, embeds: [dmEmbed] });
-    } catch (err) {
-        console.error('Gagal mengirim DM di /sendtopup:', err);
-        dmSucceeded = false;
-    }
-
-    // Fallback jika DM gagal: kirim di channel saat ini (channel tiket)
-    if (!dmSucceeded) {
-        try {
-            await interaction.channel.send({ content: `<@${target.id}> Saya tidak dapat mengirim DM. Pesan untuk Anda:\n\n${dmText}` });
-        } catch (e) {
-            console.error('Gagal fallback kirim di channel:', e);
-        }
-    }
-
-    // Balas ke admin pengirim secara ephemeral (sudah deferred)
-    try {
-        await interaction.editReply({ content: `✅ Kode ${code} berhasil dikirim ke ${target.tag} ${dmSucceeded ? '(via DM)' : '(fallback ke channel)'}`, flags: 64 });
-    } catch (e) {
-        console.error('Gagal editReply sendtopup:', e);
-    }
-
-    // Opsional: log ke logChannel
-    try {
-        const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
-        if (logChannel) {
-            await logChannel.send({
-                content: `📤 **/sendtopup** oleh ${interaction.user.tag}\nKe: <@${target.id}> (${target.tag})\nKode: ${code}\nCatatan: ${note || '-'}`
-            });
-        }
-    } catch (e) { console.error('Gagal kirim log sendtopup:', e); }
-
-    return;
-}
-
-        // 1. LOGIKA CLAIMTOPUP = SELESAI DENGAN LOG
-        if (interaction.commandName === 'claimtopup') {
-            const reason = interaction.options.getString('reason') || 'Tidak ada alasan';
-
-            const messages = await interaction.channel.messages.fetch({ limit: 100 });
-            let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan: ${reason}\n----------------------------------------\n\n`;
-            messages.reverse().forEach(m => logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`);
-
-            const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
-            if (logChannel) {
-                const buffer = Buffer.from(logContent, 'utf-8');
-                const attachment = new AttachmentBuilder(buffer, { name: `${interaction.channel.name}-log.txt` });
-                
-                // Ambil user ID dari topic channel
-                const ticketOwnerId = interaction.channel.topic?.match(/user_id:(\d+)/)?.[1];
-                
-                await logChannel.send({
-                    content: `✅ **TIKET SELESAI (via /claimtopup)**: Channel **${interaction.channel.name}** milik ${ticketOwnerId ? `<@${ticketOwnerId}>` : 'Unknown'} ditutup oleh ${interaction.user}.\n**Alasan:** ${reason}`,
-                    files: [attachment]
-                }).catch(err => console.error('Gagal kirim log ke logChannel:', err));
-            }
+            // ✅ Sudah auto-deferred di index.js, langsung process
 
             try {
-                await interaction.editReply({ content: '⌛ Memproses log dan menghapus channel...' });
-            } catch (e) {
-                console.error('Gagal editReply setelah claimtopup:', e);
+                // Filter keamanan 1: Cek Admin
+                const isAdmin = interaction.member && interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
+                if (!isAdmin) {
+                    return await interaction.editReply({ content: '❌ Hanya Admin!', flags: 64 });
+                }
+
+                // Filter keamanan 2: Hanya bisa digunakan di channel tiket
+                if (!interaction.channel || !interaction.channel.name || !interaction.channel.name.startsWith('tiket-')) {
+                    return await interaction.editReply({ content: '❌ Command ini hanya bisa digunakan di dalam channel tiket!', flags: 64 });
+                }
+
+                // LOGIKA /sendtopup (ADMIN -> KIRIM KODE KE USER)
+                if (interaction.commandName === 'sendtopup') {
+                    const target = interaction.options.getUser('user');
+                    const codeRaw = interaction.options.getString('code') || '';
+                    const code = codeRaw.trim();
+                    const note = interaction.options.getString('note') || '';
+
+                    if (!target) {
+                        await interaction.editReply({ content: '❌ Target user tidak ditemukan.', flags: 64 }).catch(() => {});
+                        return;
+                    }
+                    if (!code) {
+                        await interaction.editReply({ content: '❌ Kode tidak boleh kosong. Masukkan kode yang diberikan oleh server.', flags: 64 }).catch(() => {});
+                        return;
+                    }
+
+                    const dmText = `Hai ${target.username},\n\nTop-up Anda telah berhasil diproses dan sudah siap untuk diklaim.\nGunakan perintah di dalam game: /redeem ${code}\n\nJangan bagikan kode ini kepada siapapun. Jika mengalami kendala, silakan hubungi staf kami.\n\n— Merah Putih Roleplay`;
+
+                    const dmEmbed = new EmbedBuilder()
+                        .setTitle('Top-up Berhasil ✅')
+                        .setDescription(`Kode: \`${code}\`\n\nSilakan gunakan perintah: \`/redeem ${code}\` di dalam game.`)
+                        .addFields({ name: 'Catatan', value: note || '—' })
+                        .setColor('#2ecc71')
+                        .setTimestamp();
+
+                    let dmSucceeded = true;
+                    try {
+                        await target.send({ content: dmText, embeds: [dmEmbed] });
+                    } catch (err) {
+                        console.error('Gagal mengirim DM di /sendtopup:', err);
+                        dmSucceeded = false;
+                    }
+
+                    // Fallback jika DM gagal
+                    if (!dmSucceeded) {
+                        try {
+                            await interaction.channel.send({ content: `<@${target.id}> Saya tidak dapat mengirim DM. Pesan untuk Anda:\n\n${dmText}` });
+                        } catch (e) {
+                            console.error('Gagal fallback kirim di channel:', e);
+                        }
+                    }
+
+                    try {
+                        await interaction.editReply({ content: `✅ Kode ${code} berhasil dikirim ke ${target.tag} ${dmSucceeded ? '(via DM)' : '(fallback ke channel)'}`, flags: 64 });
+                    } catch (e) {
+                        console.error('Gagal editReply sendtopup:', e);
+                    }
+
+                    // Log ke logChannel
+                    try {
+                        const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+                        if (logChannel) {
+                            await logChannel.send({
+                                content: `📤 **/sendtopup** oleh ${interaction.user.tag}\nKe: <@${target.id}> (${target.tag})\nKode: ${code}\nCatatan: ${note || '-'}`
+                            });
+                        }
+                    } catch (e) { console.error('Gagal kirim log sendtopup:', e); }
+
+                    return;
+                }
+
+                // LOGIKA /claimtopup = SELESAI DENGAN LOG
+                if (interaction.commandName === 'claimtopup') {
+                    const reason = interaction.options.getString('reason') || 'Tidak ada alasan';
+
+                    const messages = await interaction.channel.messages.fetch({ limit: 100 });
+                    let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan: ${reason}\n----------------------------------------\n\n`;
+                    messages.reverse().forEach(m => logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`);
+
+                    const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
+                    if (logChannel) {
+                        const buffer = Buffer.from(logContent, 'utf-8');
+                        const attachment = new AttachmentBuilder(buffer, { name: `${interaction.channel.name}-log.txt` });
+                        
+                        const ticketOwnerId = interaction.channel.topic?.match(/user_id:(\d+)/)?.[1];
+                        
+                        await logChannel.send({
+                            content: `✅ **TIKET SELESAI (via /claimtopup)**: Channel **${interaction.channel.name}** milik ${ticketOwnerId ? `<@${ticketOwnerId}>` : 'Unknown'} ditutup oleh ${interaction.user}.\n**Alasan:** ${reason}`,
+                            files: [attachment]
+                        }).catch(err => console.error('Gagal kirim log ke logChannel:', err));
+                    }
+
+                    try {
+                        await interaction.editReply({ content: '⌛ Memproses log dan menghapus channel...' });
+                    } catch (e) {
+                        console.error('Gagal editReply setelah claimtopup:', e);
+                    }
+                    setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
+                    return;
+                }
+
+                // LOGIKA /closetopup = TUTUP TANPA LOG
+                if (interaction.commandName === 'closetopup') {
+                    try {
+                        await interaction.editReply({ content: '⚠️ Menutup tiket tanpa log...' });
+                    } catch (e) {
+                        console.error('Gagal editReply closetopup:', e);
+                    }
+                    setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
+                    return;
+                }
+
+            } catch (error) {
+                console.error("Error pada slash command (tiket.js):", error);
+                try {
+                    await interaction.editReply({ content: '❌ Terjadi kesalahan saat memproses perintah.' }).catch(() => {});
+                } catch (e) {
+                    console.error('Gagal kirim fallback error pada slash command:', e);
+                }
             }
-            setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
-            return; // ✅ TAMBAHKAN INI
+
+            return;
         }
-
-        // 2. LOGIKA CLOSETOPUP = TUTUP TANPA LOG
-        if (interaction.commandName === 'closetopup') {
-            try {
-                await interaction.editReply({ content: '⚠️ Menutup tiket tanpa log...' });
-            } catch (e) {
-                console.error('Gagal editReply closetopup:', e);
-            }
-            setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
-            return; // ✅ TAMBAHKAN INI
-        }
-
-    } catch (error) {
-        console.error("Error pada slash command (tiket.js):", error);
-        try {
-            if (interaction.deferred || interaction.replied) {
-                await interaction.editReply({ content: '❌ Terjadi kesalahan saat memproses perintah.' }).catch(() => {});
-            } else {
-                await safeReply(interaction, { content: '❌ Terjadi kesalahan saat memproses perintah.', flags: 64 });
-            }
-        } catch (e) {
-            console.error('Gagal kirim fallback error pada slash command:', e);
-        }
-    }
-
-    return;
-}
-
-
 
         // --- 0. LOGIKA LIHAT RULES (EPHEMERAL) ---
-
         if (interaction.isButton() && interaction.customId === 'lihat_rules') {
-
             const rulesEmbed = new EmbedBuilder()
-
                 .setTitle('📜 Aturan Top Up - Merah Putih Roleplay')
-
                 .setColor('#f1c40f')
-
                 .setDescription(
-
                     "**1. Transaksi In-Game**\nSemua item topup baik itu kendaraan, rumah, atau bisnis **tidak dapat diperjualbelikan** dengan uang IC (Ingame).\n\n" +
-
                     "**2. Kesalahan Transfer**\nKesalahan dalam melakukan transfer **bukan tanggung jawab** dari pihak Merah Putih Roleplay. Mohon teliti sebelum mengirim.\n\n" +
-
                     "**3. Kebijakan Refund**\n**Tidak ada refund** setelah transaksi/pembayaran dilakukan, kecuali terdapat kesalahan teknis atau bug dari server.\n\n" +
-
                     "**4. Pelanggaran Sanksi**\nJika ketahuan melakukan pelanggaran yang berpotensi banned atau berpotensi hilangnya item topup, maka **tidak ada refund** terkait item donate yang hilang.\n\n" +
-
                     "**5. Larangan RMT**\nDilarang keras memperjualbelikan item donate menggunakan uang asli (Rupiah) antar pemain. Pelanggaran berakibat sanksi berat/Banned.\n\n" +
-
                     "**6. Pengingat**\nKetika anda melakukan topup kendaraan pastikan slot kendaraan anda masih tersedia jika anda melakukan topup kendaraan namun anda tidak memiliki slot kendaraan yang cukup sehingga mengakibatkan redeem topup hangus itu bukan tanggung jawab kami."
-
                 )
-
                 .setFooter({ text: 'Harap dipatuhi demi kenyamanan bersama.' });
 
-
-
-            return safeReply(interaction, { embeds: [rulesEmbed], flags: 64 });
-
+            return interaction.editReply({ embeds: [rulesEmbed], flags: 64 });
         }
 
-
-
         // --- 1. MUNCULKAN FORM ---
-
         if (interaction.isButton() && interaction.customId === 'buka_modal') {
-
             const category = interaction.guild.channels.cache.get(CATEGORY_ID);
 
-            if (!category) return safeReply(interaction, { content: "Error: Kategori tidak ditemukan!", flags: 64 });
-
-
+            if (!category) return interaction.editReply({ content: "Error: Kategori tidak ditemukan!", flags: 64 });
 
             const existingTicket = category.children.cache.find(channel =>
-
                 channel.name.includes(interaction.user.username.toLowerCase())
-
             );
 
-
-
             if (existingTicket) {
-
-                return safeReply(interaction, {
-
+                return interaction.editReply({
                     content: `❌ Anda sudah memiliki tiket yang masih terbuka di <#${existingTicket.id}>.`,
-
                     flags: 64
-
                 });
-
             }
 
-
-
             const modal = new ModalBuilder().setCustomId('form_tiket').setTitle('Formulir Detail Pesanan');
-
             const ucp = new TextInputBuilder().setCustomId('ucp').setLabel("UCP / ID AKUN").setPlaceholder("Masukkan ID Akun Anda").setStyle(TextInputStyle.Short).setRequired(true);
-
             const nama = new TextInputBuilder().setCustomId('nama').setLabel("NAMA KARAKTER").setPlaceholder("Masukkan Nama Karakter").setStyle(TextInputStyle.Short).setRequired(true);
-
             const item = new TextInputBuilder().setCustomId('item').setLabel("ITEM TOPUP").setPlaceholder("Contoh: 1000 Gold / Mobil Skyline").setStyle(TextInputStyle.Paragraph).setRequired(true);
-
-
 
             modal.addComponents(new ActionRowBuilder().addComponents(ucp), new ActionRowBuilder().addComponents(nama), new ActionRowBuilder().addComponents(item));
 
             try {
-
                 await interaction.showModal(modal);
-
             } catch (err) {
-
                 console.error('Gagal showModal:', err);
-
-                await safeReply(interaction, { content: '❌ Gagal membuka formulir. Coba lagi.', flags: 64 });
-
+                await interaction.editReply({ content: '❌ Gagal membuka formulir. Coba lagi.', flags: 64 });
             }
 
             return;
-
         }
 
-
-
         // --- 2. PROSES SUBMIT FORM ---
-
         if (interaction.type === InteractionType.ModalSubmit && interaction.customId === 'form_tiket') {
-
             const valUcp = interaction.fields.getTextInputValue('ucp');
-
             const valNama = interaction.fields.getTextInputValue('nama');
-
             const valItem = interaction.fields.getTextInputValue('item');
-
             const randomID = Math.floor(1000 + Math.random() * 9000);
-
             const channelName = `tiket-${interaction.user.username}-${randomID}`;
 
-
-
             try {
-
                 const ticketChannel = await interaction.guild.channels.create({
                     name: channelName,
                     type: ChannelType.GuildText,
                     parent: CATEGORY_ID,
-                    topic: `user_id:${interaction.user.id}`, // ✅ TAMBAHKAN BARIS INI
+                    topic: `user_id:${interaction.user.id}`,
                     permissionOverwrites: [
                         { id: interaction.guild.id, deny: [PermissionsBitField.Flags.ViewChannel] },
                         { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages, PermissionsBitField.Flags.ReadMessageHistory, PermissionsBitField.Flags.AttachFiles] },
@@ -371,111 +267,51 @@ if (interaction.commandName === 'sendtopup') {
                     ],
                 });
 
-
-
                 const embedInfo = new EmbedBuilder()
-
                     .setTitle(`Detail Tiket #${randomID}`)
-
                     .addFields(
-
                         { name: '👤 User', value: `${interaction.user}`, inline: true },
-
                         { name: '🆔 UCP', value: valUcp, inline: true },
-
                         { name: '🎮 Karakter', value: valNama, inline: true },
-
                         { name: '📦 Item', value: valItem }
-
                     )
-
                     .setColor('#2ecc71').setTimestamp();
 
-
-
                 const row = new ActionRowBuilder().addComponents(
-
                     new ButtonBuilder().setCustomId('done_tiket').setLabel('Done / Selesai').setEmoji('✅').setStyle(ButtonStyle.Success),
-
                     new ButtonBuilder().setCustomId('tutup_tiket').setLabel('Tutup Tiket').setEmoji('🔒').setStyle(ButtonStyle.Danger)
-
                 );
 
-
-
                 await ticketChannel.send({ content: `Halo ${interaction.user}, Admin <@&${ALLOWED_ADMIN_ROLES[2]}> akan segera melayani Anda.`, embeds: [embedInfo], components: [row] });
-
-                await safeReply(interaction, { content: `✅ Tiket Anda berhasil dibuat: ${ticketChannel}`, flags: 64 });
-
-
+                await interaction.editReply({ content: `✅ Tiket Anda berhasil dibuat: ${ticketChannel}`, flags: 64 });
 
             } catch (error) {
-
                 console.error('Gagal membuat tiket:', error);
-
-                await safeReply(interaction, { content: 'Terjadi kesalahan saat membuat tiket.', flags: 64 });
-
+                await interaction.editReply({ content: 'Terjadi kesalahan saat membuat tiket.', flags: 64 });
             }
 
             return;
-
         }
 
-
-
         // --- 3. LOGIKA DONE / SELESAI (KHUSUS ADMIN) ---
-
         if (interaction.isButton() && interaction.customId === 'done_tiket') {
-
             const isAdmin = interaction.member && interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
+            if (!isAdmin) return interaction.editReply({ content: '❌ Hanya Staf/Admin!', flags: 64 });
 
-            if (!isAdmin) return safeReply(interaction, { content: '❌ Hanya Staf/Admin!', flags: 64 });
-
-
-
+            // ✅ Sudah deferred di index.js
             try {
-
-                if (!interaction.replied && !interaction.deferred) {
-
-                    await interaction.deferReply({ flags: 64 });
-
-                }
-
-            } catch (err) {
-
-                console.error('Gagal deferReply pada done_tiket:', err);
-
-                try { if (!interaction.replied) await interaction.followUp({ content: '❌ Terjadi kesalahan saat memproses.', flags: 64 }); } catch {}
-
-                return;
-
-            }
-
-
-
-            try {
-
                 const messages = await interaction.channel.messages.fetch({ limit: 100 });
-
                 let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\n----------------------------------------\n\n`;
 
-
-
                 messages.reverse().forEach(m => {
-
                     logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`;
-
                 });
 
-
-
                 const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
-
                 if (logChannel) {
                     const buffer = Buffer.from(logContent, 'utf-8');
                     const attachment = new AttachmentBuilder(buffer, { name: `${interaction.channel.name}-log.txt` });
                     
-                    // Ambil user ID dari topic channel
                     const ticketOwnerId = interaction.channel.topic?.match(/user_id:(\d+)/)?.[1];
                     
                     await logChannel.send({
@@ -484,62 +320,37 @@ if (interaction.commandName === 'sendtopup') {
                     }).catch(err => console.error('Gagal kirim log ke channel:', err));
                 }
 
-
-
                 try {
-
                     await interaction.editReply({ content: '✅ Log berhasil disimpan. Channel akan dihapus dalam 3 detik...' });
-
                 } catch (e) {
-
                     console.error('Gagal editReply setelah menyimpan log:', e);
-
                 }
 
                 setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
 
             } catch (err) {
-
                 console.error('Error saat memproses done_tiket:', err);
-
                 try { await interaction.editReply({ content: '❌ Terjadi kesalahan saat memproses log.' }); } catch (e) { console.error('Gagal editReply di error handler:', e); }
-
             }
 
             return;
-
         }
 
-
-
         // --- 4. LOGIKA TUTUP (TANPA LOG - JUGA KHUSUS ADMIN) ---
-
         if (interaction.isButton() && interaction.customId === 'tutup_tiket') {
-
             const isAdmin = interaction.member && interaction.member.roles.cache.some(role => ALLOWED_ADMIN_ROLES.includes(role.id));
-
             if (!isAdmin) {
-
-                return safeReply(interaction, { content: '❌ Hanya **Staf/Admin** yang bisa menutup tiket!', flags: 64 });
-
+                return interaction.editReply({ content: '❌ Hanya **Staf/Admin** yang bisa menutup tiket!', flags: 64 });
             }
 
-
-
             try {
-
-                await safeReply(interaction, { content: '⚠️ Menutup tiket tanpa log...', flags: 64 });
-
+                await interaction.editReply({ content: '⚠️ Menutup tiket tanpa log...', flags: 64 });
             } catch (e) {
-
-                console.error('Gagal safeReply pada tutup_tiket:', e);
-
+                console.error('Gagal editReply pada tutup_tiket:', e);
             }
 
             setTimeout(() => interaction.channel.delete().catch(() => {}), 3000);
-
             return;
-
         }
 
     });

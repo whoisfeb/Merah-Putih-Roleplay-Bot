@@ -1,6 +1,6 @@
-name: Ottibonynyo Mods
+name: Merah Putih Bot Developed By Ottibonynyo Mods
 concurrency:
-  group: ottibonynyo-bot-group
+  group: merah-putih-group
   cancel-in-progress: true
   
 on:
