@@ -38,6 +38,7 @@ const { setupLogsHandler } = require('./handlers/logs-discord');
 const { setupWelcomerHandler } = require('./handlers/welcomer');
 const { setupCommandsHandler } = require('./handlers/commands');
 const { setupAutoKarantinaHandler } = require('./handlers/auto-karantina');
+const reportStaffHandler = require('./handlers/report-staff');
 
 // --- CONFIG ---
 const CONFIG = {
