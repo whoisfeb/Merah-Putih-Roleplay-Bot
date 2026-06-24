@@ -236,10 +236,16 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
         const pageSize = 25;
         paginationSessions.set(interaction.user.id, { members: membersList, page: 0, pageSize, createdAt: Date.now() });
 
-        const components = buildPagedComponents(membersList, 0, pageSize);
+                const components = buildPagedComponents(membersList, 0, pageSize);
         const totalPages = Math.ceil(membersList.length / pageSize);
-        let replyContent = `✅ Data diterima.\n**UCP:** ${ucpPelapor}\n**Nama:** ${namaPelapor}\nSilakan pilih staf yang dilaporkan (hal ${1}/${totalPages}):`;
-        if (membersList.length > pageSize) replyContent += `\n\n⚠️ Role memiliki lebih dari ${pageSize} anggota — gunakan Prev/Next untuk melihat semua.`;
+        
+        // === PERBAIKAN: Mengubah format teks instruksi sesuai permintaan ===
+        let replyContent = `✅ Data diterima.\n**UCP:** ${ucpPelapor}\n**Nama:** ${namaPelapor}\nSilakan pilih staf yang dilaporkan (hal ${1}/${totalPages}):\n\n👥 Ada total ${membersList.length} staff, silahkan pilih staff yang ingin di report.`;
+        
+        // Jika staff lebih dari 25, tambahkan instruksi tombol navigasi di bawahnya
+        if (membersList.length > pageSize) {
+          replyContent += `\n*Gunakan tombol Prev/Next untuk melihat halaman lainnya.*`;
+        }
 
         console.log(`[report-staff] prepared paged select (role=${resolvedRoleInfo}, totalMembers=${membersList.length}, pages=${totalPages})`);
         return interaction.reply({ content: replyContent, components, ephemeral: true });
@@ -288,7 +294,7 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
             }
           }
 
-                    const ticketChannel = await interaction.guild.channels.create({
+          const ticketChannel = await interaction.guild.channels.create({
             name: channelName,
             type: ChannelType.GuildText,
             parent: CATEGORY_ID ? CATEGORY_ID : null,
@@ -331,6 +337,15 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
           paginationSessions.delete(interaction.user.id);
           temporaryReportCache.delete(interaction.user.id);
 
+          // === PERBAIKAN 1: Menghapus dropdown & tombol menu dari pesan asal interaksi ===
+          if (interaction.message) {
+            await interaction.message.edit({
+              content: `✅ Data diterima. UCP: ${ucpPelapor} | Nama: ${namaPelapor}\n🎉 Channel tiket dibuat: ${ticketChannel}`,
+              components: [] // Menghapus seluruh komponen (dropdown & tombol) agar tidak bisa diklik lagi
+            }).catch(() => null);
+          }
+
+          // Memberikan respon ephemeral konfirmasi ke pelapor
           return interaction.editReply({ content: `🎉 Channel tiket dibuat: ${ticketChannel}`, components: [] });
         } catch (err) {
           console.error('Gagal membuat channel tiket:', err);
@@ -340,6 +355,7 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
           });
         }
       }
+
 
     } catch (err) {
       console.error('Error in report-staff interaction handler:', err);
