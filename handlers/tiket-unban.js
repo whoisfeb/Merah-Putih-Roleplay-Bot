@@ -14,7 +14,7 @@ module.exports = (client) => {
     const CATEGORY_ID = '1392382459060162633';
     const ADMIN_ROLE_ID = '1392382455947989066';
     // Optional: isi ID channel log staff jika mau semua aksi di-log ke satu channel
-    const STAFF_LOG_CHANNEL_ID = null; // contoh: '123456789012345678'
+    const STAFF_LOG_CHANNEL_ID = '1519299286385561640'; // contoh: '123456789012345678'
 
     // Helper: parse topic untuk ownerId dan status unbanned
     async function readTicketMeta(channel) {
