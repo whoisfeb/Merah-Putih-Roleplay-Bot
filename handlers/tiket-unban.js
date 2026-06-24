@@ -361,11 +361,11 @@ module.exports = (client) => {
                     console.error('[UNBAN HANDLER] Gagal kirim pesan log di channel:', err);
                 }
 
-                // optional: kirim juga ke staff-log channel jika ada
+                // KIRIM KE CHANNEL LOGS (Diperbarui menggunakan isTextBased agar tidak error)
                 if (STAFF_LOG_CHANNEL_ID) {
                     try {
                         const logChan = await interaction.guild.channels.fetch(STAFF_LOG_CHANNEL_ID);
-                        if (logChan && logChan.isText()) {
+                        if (logChan && logChan.isTextBased()) {
                             await logChan.send({
                                 content: `📌 Mark Unbanned oleh **${interaction.user.tag}**\nTicket: ${channel.name}\nOwner: <@${ownerId}>\nDM sent: ${dmSuccess}`
                             });
@@ -390,7 +390,7 @@ module.exports = (client) => {
             }
         }
 
-        // 3. TUTUP TIKET (Hanya Admin)
+        // 3. TUTUP TIKET (Hanya Admin - Tanpa Kirim Log)
         if (interaction.isButton() && interaction.customId === 'close_ticket') {
             try {
                 if (!isAdmin(interaction)) {
@@ -402,26 +402,11 @@ module.exports = (client) => {
 
                 const channel = interaction.channel;
 
-                // Tidak mengirim DM — hanya menutup channel
+                // Memberikan respon ke admin dan menghapus channel tanpa log
                 await interaction.reply({
                     content: '🗂️ Ticket akan ditutup dan dihapus dalam 5 detik.',
                     ephemeral: true
                 });
-
-                // optional: kirim staff log jika di-setup
-                const { ownerId, unbanned } = await readTicketMeta(channel);
-                if (STAFF_LOG_CHANNEL_ID) {
-                    try {
-                        const logChan = await interaction.guild.channels.fetch(STAFF_LOG_CHANNEL_ID);
-                        if (logChan && logChan.isText()) {
-                            await logChan.send({
-                                content: `🗂️ Ticket closed by **${interaction.user.tag}**\nTicket: ${channel.name}\nOwner: ${ownerId ? `<@${ownerId}>` : 'Unknown'}\nUnbanned: ${unbanned}`
-                            });
-                        }
-                    } catch (err) {
-                        console.error('[UNBAN HANDLER] Gagal kirim staff log on close:', err);
-                    }
-                }
 
                 setTimeout(() => channel.delete().catch(() => {}), 5000);
 
@@ -441,6 +426,7 @@ module.exports = (client) => {
         }
 
     });
+
 
     // Global error handlers
     process.on('unhandledRejection', (err) => console.error('[UNBAN HANDLER] UnhandledRejection:', err));
