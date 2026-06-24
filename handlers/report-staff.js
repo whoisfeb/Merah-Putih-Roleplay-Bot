@@ -288,7 +288,7 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
             }
           }
 
-          const ticketChannel = await interaction.guild.channels.create({
+                    const ticketChannel = await interaction.guild.channels.create({
             name: channelName,
             type: ChannelType.GuildText,
             parent: CATEGORY_ID ? CATEGORY_ID : null,
@@ -307,6 +307,9 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
             return `**${v}**`;
           }).join(', ');
 
+          // === PERBAIKAN: Baris adminMentions dipindahkan ke atas sebelum digunakan di embed ===
+          const adminMentions = ADMIN_ROLE_IDS.filter(id => id && !String(id).startsWith('TARUH_ID_ROLE')).map(id => `<@&${id}>`).join(' ');
+
           const ticketEmbed = new EmbedBuilder()
             .setTitle('🎫 TIKET LAPORAN STAF BARU')
             .setDescription(`Halo ${interaction.user}, silakan tunggu tanggapan dari pihak ${adminMentions} untuk menindak lanjuti laporan anda.`)
@@ -321,7 +324,6 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
             .setTimestamp()
             .setFooter({ text: 'Sistem Tiket Laporan Otomatis' });
 
-          const adminMentions = ADMIN_ROLE_IDS.filter(id => id && !String(id).startsWith('TARUH_ID_ROLE')).map(id => `<@&${id}>`).join(' ');
           const closeRow = new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId('btn_close_ticket').setLabel('Close Ticket').setStyle(ButtonStyle.Danger));
 
           await ticketChannel.send({ content: `Halo ${interaction.user}, silakan tunggu respon dari ${adminMentions} untuk tindak lanjut dari laporan Anda`, embeds: [ticketEmbed], components: [closeRow] });
@@ -338,6 +340,7 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
           });
         }
       }
+
     } catch (err) {
       console.error('Error in report-staff interaction handler:', err);
       try {
