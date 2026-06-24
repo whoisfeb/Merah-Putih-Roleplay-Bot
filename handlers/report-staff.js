@@ -252,8 +252,17 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
       }
 
       // ---- Select chosen -> create ticket, add perms ----
-      if (interaction.isStringSelectMenu() && interaction.customId === 'select_staff_report') {
-        await interaction.deferReply({ ephemeral: true });
+            if (interaction.isStringSelectMenu() && interaction.customId === 'select_staff_report') {
+        // === PERBAIKAN 1: ANTI-SPAM LOCK INSTAN (Mencegah Pembuatan Tiket Ganda) ===
+        const sessionCheck = paginationSessions.get(interaction.user.id);
+        if (!sessionCheck || sessionCheck.isProcessing) {
+          return interaction.reply({ content: '⏳ Laporan Anda sedang diproses, mohon tunggu...', ephemeral: true }).catch(() => null);
+        }
+
+        // Kunci sesi di memori bot saat klik pertama masuk
+        sessionCheck.isProcessing = true;
+        paginationSessions.set(interaction.user.id, sessionCheck);
+        // ==========================================================================
 
         const selectedValues = interaction.values;
         const cache = temporaryReportCache.get(interaction.user.id);
@@ -313,7 +322,6 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
             return `**${v}**`;
           }).join(', ');
 
-          // === PERBAIKAN: Baris adminMentions dipindahkan ke atas sebelum digunakan di embed ===
           const adminMentions = ADMIN_ROLE_IDS.filter(id => id && !String(id).startsWith('TARUH_ID_ROLE')).map(id => `<@&${id}>`).join(' ');
 
           const ticketEmbed = new EmbedBuilder()
@@ -337,24 +345,38 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
           paginationSessions.delete(interaction.user.id);
           temporaryReportCache.delete(interaction.user.id);
 
-          // === PERBAIKAN 1: Menghapus dropdown & tombol menu dari pesan asal interaksi ===
-          if (interaction.message) {
-            await interaction.message.edit({
-              content: `✅ Data diterima. UCP: ${ucpPelapor} | Nama: ${namaPelapor}\n🎉 Channel tiket dibuat: ${ticketChannel}`,
-              components: [] // Menghapus seluruh komponen (dropdown & tombol) agar tidak bisa diklik lagi
-            }).catch(() => null);
-          }
+          // === PERBAIKAN UTAMA VISUAL: Mengubah isi teks total untuk memaksa pembersihan dropdown ===
+          return await interaction.update({
+            content: `🎉 **Channel Tiket Berhasil Dibuat!**\n\n📌 **Detail Akses:**\n• Silakan langsung menuju ke channel: ${ticketChannel}\n• Harap tunggu konfirmasi manajemen di channel tersebut.\n\n*Pesan pilihan ini otomatis ditutup untuk keamanan.*`,
+            components: [] // <--- Dijamin hilang total karena struktur teks utama ikut dirombak
+          });
 
-          // Memberikan respon ephemeral konfirmasi ke pelapor
-          return interaction.editReply({ content: `🎉 Channel tiket dibuat: ${ticketChannel}`, components: [] });
         } catch (err) {
           console.error('Gagal membuat channel tiket:', err);
-          return interaction.editReply({
-            content: '❌ Terjadi kesalahan saat mencoba membuat channel tiket baru. Pastikan Bot memiliki izin Manage Channels dan permissionOverwrites.',
-            components: [],
-          });
+          
+          // Lepas kembali kunci anti-spam jika pembuatan channel gagal agar user bisa mengulang
+          const failedSession = paginationSessions.get(interaction.user.id);
+          if (failedSession) {
+            failedSession.isProcessing = false;
+            paginationSessions.set(interaction.user.id, failedSession);
+          }
+
+          // Gunakan defer/reply fallback jika update gagal di catch block
+          if (interaction.deferred || interaction.replied) {
+            return interaction.editReply({
+              content: '❌ Terjadi kesalahan saat mencoba membuat channel tiket baru. Pastikan Bot memiliki izin Manage Channels.',
+              components: [],
+            });
+          } else {
+            return interaction.reply({
+              content: '❌ Terjadi kesalahan saat mencoba membuat channel tiket baru. Pastikan Bot memiliki izin Manage Channels.',
+              components: [],
+              ephemeral: true
+            });
+          }
         }
       }
+
 
 
     } catch (err) {
