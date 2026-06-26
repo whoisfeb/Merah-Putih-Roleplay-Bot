@@ -219,7 +219,7 @@ const commands = [
     {
         name: 'send-message',
         description: '👑 [OWNER ONLY] Mengirim pesan teks, gambar, atau file ke channel atau user tertentu',
-        integration_types:[0, 1],
+        integration_types:[0],
         contexts:[0, 1, 2],
         options: [
             // Konten Pesan
