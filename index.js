@@ -39,7 +39,6 @@ const { setupLogsHandler } = require('./handlers/logs-discord');
 const { setupWelcomerHandler } = require('./handlers/welcomer');
 const { setupCommandsHandler } = require('./handlers/commands');
 const { setupAutoKarantinaHandler } = require('./handlers/auto-karantina');
-const { handleSendMessage } = require('./handlers/control.js');
 
 
 // --- CONFIG ---
@@ -215,19 +214,6 @@ const commands = [
             { name: 'code', type: 3, description: 'Kode topup (contoh: MPRP-65A5-U8ZG)', required: true },
             { name: 'note', type: 3, description: 'Catatan/validitas (opsional)', required: false },
         ],
-    },
-    {
-        name: 'send-message',
-        description: '👑 [OWNER ONLY] Mengirim pesan teks, gambar, atau file ke channel atau user tertentu',
-        options: [
-            // Konten Pesan
-            { name: 'teks', type: 3, description: 'Tulis isi teks pesan yang ingin dikirim', required: false },
-            { name: 'file', type: 11, description: 'Unggah gambar, video, atau dokumen file', required: false },
-            
-            // Target Tujuan (Opsional di form, namun wajib diisi salah satu saat dijalankan)
-            { name: 'channel', type: 7, description: 'Pilih text channel target tujuan kirim', channel_types: [0, 5], required: false },
-            { name: 'user', type: 6, description: 'Pilih akun user target tujuan kirim via DM', required: false },
-        ],
     }
 ];
 
@@ -235,50 +221,23 @@ const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
 
 async function registerCommands() {
     try {
-        console.log('[SYSTEM] Mendaftarkan Slash Commands khusus server (Guild Scope)...');
+        console.log('[SYSTEM] Mendaftarkan Slash Commands...');
         await rest.put(
             Routes.applicationGuildCommands(CONFIG.CLIENT_ID, CONFIG.GUILD_ID),
             { body: commands },
         );
-        console.log('[SYSTEM] Slash Commands Server berhasil didaftarkan!');
+        console.log('[SYSTEM] Slash Commands berhasil didaftarkan!');
     } catch (error) {
         console.error(error);
     }
 }
 
-// ==========================================
-// FUNGSI PEMBERSIH COMMAND GLOBAL (DUPLIKAT)
-// ==========================================
-async function cleanGlobalCommands() {
-    try {
-        console.log('[SYSTEM] Memulai pembersihan Slash Commands Global lama...');
-        await rest.put(
-            Routes.applicationCommands(CONFIG.CLIENT_ID),
-            { body: [] }, // Mengirim array kosong menghapus cache global di Discord
-        );
-        console.log('[SYSTEM] Slash Commands Global berhasil dibersihkan!');
-    } catch (error) {
-        console.error('[SYSTEM ERROR] Gagal membersihkan command global:', error);
-    }
-}
-
-// Diperbarui ke 'clientReady' sesuai anjuran discord.js versi terbaru
-client.once('clientReady', async () => {
+client.once('ready', async () => {
     console.log(`[LOG] Berhasil masuk sebagai ${client.user.tag}`);
-    
-    // 1. Bersihkan sisa command global yang menyebabkan duplikat
-    await cleanGlobalCommands();
-    
-    // 2. Daftarkan ulang command lokal server yang benar
     await registerCommands();
 
-    // Atur Status Menggunakan Tipe Custom agar tulisan tidak terbalik
     client.user.setPresence({
-        activities: [{ 
-            type: ActivityType.Custom, 
-            name: 'customstatus', 
-            state: 'Merah Putih Roleplay' 
-        }],
+        activities: [{ name: 'Ottibonynyo Mods', type: ActivityType.Playing }],
         status: 'online',
     });
     console.log('[LOG] Status bot telah diubah menjadi ONLINE');
@@ -316,7 +275,6 @@ client.once('clientReady', async () => {
     }, 3600000);
 });
 
-
 // ==========================================
 // EVENT LISTENERS
 // ==========================================
@@ -324,20 +282,13 @@ client.once('clientReady', async () => {
 client.on('messageCreate', async (message) => {
     await antiLinkHandler(message, CONFIG);
     await messageMonitorHandler(message, CONFIG);
+
 });
 
+// PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
 client.on('interactionCreate', async (interaction) => {
-    // 1. HANDLE COMMAND /SEND-MESSAGE
-    if (interaction.isChatInputCommand() && interaction.commandName === 'send-message') {
-        try {
-            await handleSendMessage(interaction);
-        } catch (err) {
-            console.error('[CONTROL INTERACTION ERROR]', err);
-        }
-        return;
-    }
-
-    // 2. PAYMENT INTERACTION
+    // If it's a payment-related interaction, handle it IMMEDIATELY
+    // before any other async operations
     if ((interaction.isChatInputCommand() && interaction.commandName === 'payment') ||
         (interaction.isButton() && ['pay_bank_info', 'pay_gopay_info', 'pay_qris_info'].includes(interaction.customId))) {
         try {
