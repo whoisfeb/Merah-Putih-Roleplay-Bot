@@ -255,9 +255,9 @@ client.once('ready', async () => {
             // Atur status kehadiran bot menjadi PLAYING dengan rincian statistik
             client.user.setPresence({
                 activities: [{ 
-                    name: 'Ottibonynyo Mods', 
+                    name: 'Merah Putih Roleplay', 
                     type: ActivityType.Playing,
-                    state: `Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots} • Join: discord.gg/merahputih`
+                    state: `Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots} `
                 }],
                 status: 'online',
             });
@@ -265,7 +265,7 @@ client.once('ready', async () => {
         } else {
             // Teks cadangan jika server tidak terdeteksi saat bot dinyalakan
             client.user.setPresence({
-                activities: [{ name: 'Ottibonynyo Mods', type: ActivityType.Playing }],
+                activities: [{ name: 'Merah Putih', type: ActivityType.Playing }],
                 status: 'online',
             });
             console.log('[LOG] Status bot telah diubah menjadi ONLINE (Server data not found)');
