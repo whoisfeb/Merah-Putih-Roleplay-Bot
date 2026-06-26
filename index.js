@@ -39,6 +39,7 @@ const { setupLogsHandler } = require('./handlers/logs-discord');
 const { setupWelcomerHandler } = require('./handlers/welcomer');
 const { setupCommandsHandler } = require('./handlers/commands');
 const { setupAutoKarantinaHandler } = require('./handlers/auto-karantina');
+const { handleSendMessage } = require('./handlers/control.js');
 
 
 // --- CONFIG ---
@@ -214,6 +215,19 @@ const commands = [
             { name: 'code', type: 3, description: 'Kode topup (contoh: MPRP-65A5-U8ZG)', required: true },
             { name: 'note', type: 3, description: 'Catatan/validitas (opsional)', required: false },
         ],
+    },
+    {
+        name: 'send-message',
+        description: '👑 [OWNER ONLY] Mengirim pesan teks, gambar, atau file ke channel atau user tertentu',
+        options: [
+            // Konten Pesan
+            { name: 'teks', type: 3, description: 'Tulis isi teks pesan yang ingin dikirim', required: false },
+            { name: 'file', type: 11, description: 'Unggah gambar, video, atau dokumen file', required: false },
+            
+            // Target Tujuan (Opsional di form, namun wajib diisi salah satu saat dijalankan)
+            { name: 'channel', type: 7, description: 'Pilih text channel target tujuan kirim', channel_types: [0, 5], required: false },
+            { name: 'user', type: 6, description: 'Pilih akun user target tujuan kirim via DM', required: false },
+        ],
     }
 ];
 
@@ -320,9 +334,21 @@ client.on('messageCreate', async (message) => {
 });
 
 // PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
+// PASTIKAN Anda sudah meng-import handler control di bagian paling atas file uindex.js Anda:
+// const { handleSendMessage } = require('./handlers/control.js');
+
 client.on('interactionCreate', async (interaction) => {
-    // If it's a payment-related interaction, handle it IMMEDIATELY
-    // before any other async operations
+    // 1. HANDLE COMMAND /SEND-MESSAGE TERLEBIH DAHULU (OWNER ONLY CONTROL)
+    if (interaction.isChatInputCommand() && interaction.commandName === 'send-message') {
+        try {
+            await handleSendMessage(interaction);
+        } catch (err) {
+            console.error('[CONTROL INTERACTION ERROR]', err);
+        }
+        return;
+    }
+
+    // 2. LOGIKA BAWAAN: PAYMENT INTERACTION - HANDLE IMMEDIATELY
     if ((interaction.isChatInputCommand() && interaction.commandName === 'payment') ||
         (interaction.isButton() && ['pay_bank_info', 'pay_gopay_info', 'pay_qris_info'].includes(interaction.customId))) {
         try {
@@ -333,6 +359,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 });
+
 
 client.login(CONFIG.TOKEN);
 
