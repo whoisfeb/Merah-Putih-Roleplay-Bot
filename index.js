@@ -235,23 +235,50 @@ const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
 
 async function registerCommands() {
     try {
-        console.log('[SYSTEM] Mendaftarkan Slash Commands...');
+        console.log('[SYSTEM] Mendaftarkan Slash Commands khusus server (Guild Scope)...');
         await rest.put(
             Routes.applicationGuildCommands(CONFIG.CLIENT_ID, CONFIG.GUILD_ID),
             { body: commands },
         );
-        console.log('[SYSTEM] Slash Commands berhasil didaftarkan!');
+        console.log('[SYSTEM] Slash Commands Server berhasil didaftarkan!');
     } catch (error) {
         console.error(error);
     }
 }
 
-client.once('ready', async () => {
+// ==========================================
+// FUNGSI PEMBERSIH COMMAND GLOBAL (DUPLIKAT)
+// ==========================================
+async function cleanGlobalCommands() {
+    try {
+        console.log('[SYSTEM] Memulai pembersihan Slash Commands Global lama...');
+        await rest.put(
+            Routes.applicationCommands(CONFIG.CLIENT_ID),
+            { body: [] }, // Mengirim array kosong menghapus cache global di Discord
+        );
+        console.log('[SYSTEM] Slash Commands Global berhasil dibersihkan!');
+    } catch (error) {
+        console.error('[SYSTEM ERROR] Gagal membersihkan command global:', error);
+    }
+}
+
+// Diperbarui ke 'clientReady' sesuai anjuran discord.js versi terbaru
+client.once('clientReady', async () => {
     console.log(`[LOG] Berhasil masuk sebagai ${client.user.tag}`);
+    
+    // 1. Bersihkan sisa command global yang menyebabkan duplikat
+    await cleanGlobalCommands();
+    
+    // 2. Daftarkan ulang command lokal server yang benar
     await registerCommands();
 
+    // Atur Status Menggunakan Tipe Custom agar tulisan tidak terbalik
     client.user.setPresence({
-        activities: [{ name: 'Ottibonynyo Mods', type: ActivityType.Playing }],
+        activities: [{ 
+            type: ActivityType.Custom, 
+            name: 'customstatus', 
+            state: 'Merah Putih Roleplay' 
+        }],
         status: 'online',
     });
     console.log('[LOG] Status bot telah diubah menjadi ONLINE');
@@ -299,12 +326,8 @@ client.on('messageCreate', async (message) => {
     await messageMonitorHandler(message, CONFIG);
 });
 
-// PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
-// PASTIKAN Anda sudah meng-import handler control di bagian paling atas file uindex.js Anda:
-// const { handleSendMessage } = require('./handlers/control.js');
-
 client.on('interactionCreate', async (interaction) => {
-    // 1. HANDLE COMMAND /SEND-MESSAGE TERLEBIH DAHULU (OWNER ONLY CONTROL)
+    // 1. HANDLE COMMAND /SEND-MESSAGE
     if (interaction.isChatInputCommand() && interaction.commandName === 'send-message') {
         try {
             await handleSendMessage(interaction);
@@ -314,7 +337,7 @@ client.on('interactionCreate', async (interaction) => {
         return;
     }
 
-    // 2. LOGIKA BAWAAN: PAYMENT INTERACTION - HANDLE IMMEDIATELY
+    // 2. PAYMENT INTERACTION
     if ((interaction.isChatInputCommand() && interaction.commandName === 'payment') ||
         (interaction.isButton() && ['pay_bank_info', 'pay_gopay_info', 'pay_qris_info'].includes(interaction.customId))) {
         try {
@@ -326,6 +349,4 @@ client.on('interactionCreate', async (interaction) => {
     }
 });
 
-
 client.login(CONFIG.TOKEN);
-
