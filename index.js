@@ -219,39 +219,32 @@ const commands = [
     {
         name: 'send-message',
         description: '👑 [OWNER ONLY] Mengirim pesan teks, gambar, atau file ke channel atau user tertentu',
-        integration_types:[0],
-        contexts:[0, 1, 2],
         options: [
             // Konten Pesan
             { name: 'teks', type: 3, description: 'Tulis isi teks pesan yang ingin dikirim', required: false },
             { name: 'file', type: 11, description: 'Unggah gambar, video, atau dokumen file', required: false },
             
-            // Target Tujuan
-            { name: 'channel', type: 7, description: 'Pilih text channel target tujuan kirim', channel_types:[0, 5], required: false },
-            { name: 'user', type: 6, description: 'Pilih akun user target tujuan kirim via DM', required: false }
-        ]
+            // Target Tujuan (Opsional di form, namun wajib diisi salah satu saat dijalankan)
+            { name: 'channel', type: 7, description: 'Pilih text channel target tujuan kirim', channel_types: [0, 5], required: false },
+            { name: 'user', type: 6, description: 'Pilih akun user target tujuan kirim via DM', required: false },
+        ],
     }
-
 ];
 
 const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
 
 async function registerCommands() {
     try {
-        console.log('[SYSTEM] Mendaftarkan Slash Commands secara GLOBAL agar bisa muncul di DM...');
-        
-        // Diubah menjadi applicationCommands (Tanpa mengunci GUILD_ID)
+        console.log('[SYSTEM] Mendaftarkan Slash Commands...');
         await rest.put(
-            Routes.applicationCommands(CONFIG.CLIENT_ID),
+            Routes.applicationGuildCommands(CONFIG.CLIENT_ID, CONFIG.GUILD_ID),
             { body: commands },
         );
-        
-        console.log('[SYSTEM] Slash Commands berhasil didaftarkan secara GLOBAL!');
+        console.log('[SYSTEM] Slash Commands berhasil didaftarkan!');
     } catch (error) {
-        console.error('[SYSTEM ERROR] Gagal mendaftarkan commands:', error);
+        console.error(error);
     }
 }
-
 
 client.once('ready', async () => {
     console.log(`[LOG] Berhasil masuk sebagai ${client.user.tag}`);
