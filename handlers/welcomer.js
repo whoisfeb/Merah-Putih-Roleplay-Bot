@@ -24,7 +24,7 @@ async function updateBotStatus(guild) {
         // Mengubah status kehadiran bot menjadi PLAYING beserta rincian statistik kustom
         guild.client.user.setPresence({
             activities: [{ 
-                name: 'Ottibonynyo Mods', 
+                name: 'Merah Putih Roleplay', 
                 type: ActivityType.Playing,
                 state: `Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots}`
             }],

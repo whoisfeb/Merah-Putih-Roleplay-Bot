@@ -251,41 +251,23 @@ client.once('ready', async () => {
     await registerCommands();
 
     // ==========================================
-    // SEKSI STATISTIK SERVER & CUSTOM STATUS
+    // SEKSI STATISTIK SERVER & CUSTOM STATUS (SUDAH DIBERSIHKAN)
     // ==========================================
-    try {
-        // Ambil data server secara dinamis dari cache bot
-        // Silakan sesuaikan ID server di bawah jika bot berada di banyak server
-        const guild = client.guilds.cache.first(); 
-
-        if (guild) {
-            // Fetch seluruh member terbaru agar data kalkulasi akurat
-            await guild.members.fetch();
-
-            const totalMembers = guild.memberCount;
-            const totalBots = guild.members.cache.filter(member => member.user.bot).size;
-            const totalHumans = totalMembers - totalBots;
-
-            // Atur status kehadiran bot menjadi PLAYING dengan rincian statistik
-            client.user.setPresence({
-                activities: [{ 
-                    name: 'Merah Putih Roleplay', 
-                    type: ActivityType.Playing,
-                    state: `Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots} `
-                }],
-                status: 'online',
-            });
-            console.log(`[LOG] Status bot diperbarui -> Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots}`);
-        } else {
-            // Teks cadangan jika server tidak terdeteksi saat bot dinyalakan
-            client.user.setPresence({
-                activities: [{ name: 'Merah Putih', type: ActivityType.Playing }],
-                status: 'online',
-            });
-            console.log('[LOG] Status bot telah diubah menjadi ONLINE (Server data not found)');
-        }
-    } catch (error) {
-        console.error('[STATUS ERROR] Gagal memproses data statistik server:', error);
+    const guild = client.guilds.cache.first(); 
+    if (guild) {
+        // Memanggil fungsi utama dari file welcomer Anda agar tidak duplikat
+        await updateBotStatus(guild); 
+    } else {
+        // Teks cadangan jika server tidak terdeteksi saat bot dinyalakan
+        client.user.setPresence({
+            activities: [{ 
+                type: ActivityType.Custom,
+                name: 'customstatus',
+                state: 'Merah Putih Roleplay' 
+            }],
+            status: 'online',
+        });
+        console.log('[LOG] Status bot telah diubah menjadi ONLINE (Server data not found)');
     }
 
     // ==========================================
@@ -323,6 +305,7 @@ client.once('ready', async () => {
         }
     }, 3600000);
 });
+
 
 // ==========================================
 // EVENT LISTENERS
