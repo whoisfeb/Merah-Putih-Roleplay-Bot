@@ -218,7 +218,7 @@ const commands = [
     },
     {
         name: 'send-message',
-        description: ':crown: [OWNER ONLY] Mengirim pesan teks, gambar, atau file ke channel atau user tertentu',
+        description: 'Mengirim pesan teks, gambar, atau file ke channel atau user tertentu',
         options: [
             // Konten Pesan
             { name: 'teks', type: 3, description: 'Tulis isi teks pesan yang ingin dikirim', required: false },
@@ -301,8 +301,7 @@ client.on('messageCreate', async (message) => {
 
 // PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
 client.on('interactionCreate', async (interaction) => {
-    // If it's a payment-related interaction, handle it IMMEDIATELY
-    // before any other async operations
+    // 1. Jalankan handler payment SEGERA
     if ((interaction.isChatInputCommand() && interaction.commandName === 'payment') ||
         (interaction.isButton() && ['pay_bank_info', 'pay_gopay_info', 'pay_qris_info'].includes(interaction.customId))) {
         try {
@@ -311,6 +310,16 @@ client.on('interactionCreate', async (interaction) => {
             console.error('[PAYMENT INTERACTION ERROR]', err);
         }
         return;
+    }
+
+    // 2. TAMBAHKAN LOGIKA UNTUK SEND MESSAGE DISINI
+    if (interaction.isChatInputCommand() && interaction.commandName === 'send-message') {
+        try {
+            await handleSendMessage(interaction);
+        } catch (err) {
+            console.error('[SEND MESSAGE ERROR]', err);
+        }
+        return; // Hentikan eksekusi setelah selesai
     }
 });
 
