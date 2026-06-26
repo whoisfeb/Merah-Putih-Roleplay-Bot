@@ -238,16 +238,20 @@ const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
 
 async function registerCommands() {
     try {
-        console.log('[SYSTEM] Mendaftarkan Slash Commands...');
+        console.log('[SYSTEM] Mendaftarkan Slash Commands secara GLOBAL agar bisa muncul di DM...');
+        
+        // Diubah menjadi applicationCommands (Tanpa mengunci GUILD_ID)
         await rest.put(
-            Routes.applicationGuildCommands(CONFIG.CLIENT_ID, CONFIG.GUILD_ID),
+            Routes.applicationCommands(CONFIG.CLIENT_ID),
             { body: commands },
         );
-        console.log('[SYSTEM] Slash Commands berhasil didaftarkan!');
+        
+        console.log('[SYSTEM] Slash Commands berhasil didaftarkan secara GLOBAL!');
     } catch (error) {
-        console.error(error);
+        console.error('[SYSTEM ERROR] Gagal mendaftarkan commands:', error);
     }
 }
+
 
 client.once('ready', async () => {
     console.log(`[LOG] Berhasil masuk sebagai ${client.user.tag}`);

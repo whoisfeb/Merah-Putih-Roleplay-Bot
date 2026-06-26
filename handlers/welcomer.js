@@ -8,8 +8,34 @@ const { EmbedBuilder, ActivityType } = require('discord.js');
 const CHANNEL_WELCOME_ID = '1392382456589717555';
 
 // ==========================================
-// HELPER FUNCTION
+// HELPER FUNCTION: UPDATE BOT STATUS REAL-TIME
 // ==========================================
+async function updateBotStatus(guild) {
+    try {
+        if (!guild) return;
+
+        // Ambil data member terbaru agar kalkulasi akurat (menghindari cache lama)
+        await guild.members.fetch();
+
+        const totalMembers = guild.memberCount;
+        const totalBots = guild.members.cache.filter(member => member.user.bot).size;
+        const totalHumans = totalMembers - totalBots;
+
+        // Mengubah status kehadiran bot menjadi PLAYING beserta rincian statistik kustom
+        guild.client.user.setPresence({
+            activities: [{ 
+                name: 'Ottibonynyo Mods', 
+                type: ActivityType.Playing,
+                state: `Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots}`
+            }],
+            status: 'online',
+        });
+        console.log(`[STATUS UPDATE] Diperbarui otomatis -> Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots}`);
+    } catch (err) {
+        console.error('[STATUS ERROR] Gagal memperbarui status di welcomer:', err);
+    }
+}
+
 // ==========================================
 // MAIN HANDLER FUNCTION
 // ==========================================
@@ -22,7 +48,9 @@ async function setupWelcomerHandler(client) {
 
     client.on('guildMemberAdd', async (member) => {
         const channel = member.guild.channels.cache.get(CHANNEL_WELCOME_ID);
-        updateBotStatus(member.guild, client);
+        
+        // Panggil fungsi pembantu untuk update status
+        await updateBotStatus(member.guild);
 
         if (!channel) {
             console.log(`⚠️ Channel welcome tidak ditemukan!`);
@@ -62,7 +90,9 @@ async function setupWelcomerHandler(client) {
 
     client.on('guildMemberRemove', async (member) => {
         const channel = member.guild.channels.cache.get(CHANNEL_WELCOME_ID);
-        updateBotStatus(member.guild, client);
+        
+        // Panggil fungsi pembantu untuk update status
+        await updateBotStatus(member.guild);
 
         if (!channel) {
             console.log(`⚠️ Channel log keluar tidak ditemukan!`);
