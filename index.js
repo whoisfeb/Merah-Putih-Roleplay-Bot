@@ -268,18 +268,21 @@ client.once('ready', async () => {
 
             // Atur status kehadiran bot menjadi PLAYING dengan rincian statistik
             client.user.setPresence({
-                activities: [{ 
-                    name: 'Merah Putih Roleplay', 
-                    type: ActivityType.Playing,
-                    state: `Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots} `
-                }],
-                status: 'online',
-            });
+            activities: [{ 
+                // Ubah type menjadi Custom
+                type: ActivityType.Custom,
+                // Gabungkan semua teks ke dalam 'name' atau 'state'
+                name: 'Mabar Gta 2005', 
+                state: `Merah Putih Roleplay | Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots}`
+            }],
+            status: 'online',
+        });
+
             console.log(`[LOG] Status bot diperbarui -> Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots}`);
         } else {
             // Teks cadangan jika server tidak terdeteksi saat bot dinyalakan
             client.user.setPresence({
-                activities: [{ name: 'Merah Putih', type: ActivityType.Playing }],
+                activities: [{ name: 'Merah Putih Roleplay', type: ActivityType.Playing }],
                 status: 'online',
             });
             console.log('[LOG] Status bot telah diubah menjadi ONLINE (Server data not found)');
