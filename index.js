@@ -250,29 +250,12 @@ client.once('ready', async () => {
     console.log(`[LOG] Berhasil masuk sebagai ${client.user.tag}`);
     await registerCommands();
 
-    // ==========================================
-    // SEKSI STATISTIK SERVER & CUSTOM STATUS (SUDAH DIBERSIHKAN)
-    // ==========================================
-    const guild = client.guilds.cache.first(); 
-    if (guild) {
-        // Memanggil fungsi utama dari file welcomer Anda agar tidak duplikat
-        await updateBotStatus(guild); 
-    } else {
-        // Teks cadangan jika server tidak terdeteksi saat bot dinyalakan
-        client.user.setPresence({
-            activities: [{ 
-                type: ActivityType.Custom,
-                name: 'customstatus',
-                state: 'Merah Putih Roleplay' 
-            }],
-            status: 'online',
-        });
-        console.log('[LOG] Status bot telah diubah menjadi ONLINE (Server data not found)');
-    }
+    client.user.setPresence({
+        activities: [{ name: 'Ottibonynyo Mods', type: ActivityType.Playing }],
+        status: 'online',
+    });
+    console.log('[LOG] Status bot telah diubah menjadi ONLINE');
 
-    // ==========================================
-    // LOG SYSTEM ON ONLINE
-    // ==========================================
     const logChannel = client.channels.cache.get(CONFIG.LOG_CHANNEL);
     if (logChannel) {
         const onlineEmbed = new EmbedBuilder()
