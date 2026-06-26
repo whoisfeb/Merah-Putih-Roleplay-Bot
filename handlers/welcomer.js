@@ -10,12 +10,6 @@ const CHANNEL_WELCOME_ID = '1392382456589717555';
 // ==========================================
 // HELPER FUNCTION
 // ==========================================
-
-function updateBotStatus(guild, client) {
-    const memberCount = guild.memberCount;
-    client.user.setActivity(`${memberCount} Members`, { type: ActivityType.Watching });
-}
-
 // ==========================================
 // MAIN HANDLER FUNCTION
 // ==========================================

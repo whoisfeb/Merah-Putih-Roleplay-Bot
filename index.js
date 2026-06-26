@@ -236,12 +236,47 @@ client.once('ready', async () => {
     console.log(`[LOG] Berhasil masuk sebagai ${client.user.tag}`);
     await registerCommands();
 
-    client.user.setPresence({
-        activities: [{ name: 'Ottibonynyo Mods', type: ActivityType.Playing }],
-        status: 'online',
-    });
-    console.log('[LOG] Status bot telah diubah menjadi ONLINE');
+    // ==========================================
+    // SEKSI STATISTIK SERVER & CUSTOM STATUS
+    // ==========================================
+    try {
+        // Ambil data server secara dinamis dari cache bot
+        // Silakan sesuaikan ID server di bawah jika bot berada di banyak server
+        const guild = client.guilds.cache.first(); 
 
+        if (guild) {
+            // Fetch seluruh member terbaru agar data kalkulasi akurat
+            await guild.members.fetch();
+
+            const totalMembers = guild.memberCount;
+            const totalBots = guild.members.cache.filter(member => member.user.bot).size;
+            const totalHumans = totalMembers - totalBots;
+
+            // Atur status kehadiran bot menjadi PLAYING dengan rincian statistik
+            client.user.setPresence({
+                activities: [{ 
+                    name: 'Ottibonynyo Mods', 
+                    type: ActivityType.Playing,
+                    state: `Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots} • Join: discord.gg/merahputih`
+                }],
+                status: 'online',
+            });
+            console.log(`[LOG] Status bot diperbarui -> Total: ${totalMembers} | User: ${totalHumans} | Bot: ${totalBots}`);
+        } else {
+            // Teks cadangan jika server tidak terdeteksi saat bot dinyalakan
+            client.user.setPresence({
+                activities: [{ name: 'Ottibonynyo Mods', type: ActivityType.Playing }],
+                status: 'online',
+            });
+            console.log('[LOG] Status bot telah diubah menjadi ONLINE (Server data not found)');
+        }
+    } catch (error) {
+        console.error('[STATUS ERROR] Gagal memproses data statistik server:', error);
+    }
+
+    // ==========================================
+    // LOG SYSTEM ON ONLINE
+    // ==========================================
     const logChannel = client.channels.cache.get(CONFIG.LOG_CHANNEL);
     if (logChannel) {
         const onlineEmbed = new EmbedBuilder()
@@ -282,7 +317,6 @@ client.once('ready', async () => {
 client.on('messageCreate', async (message) => {
     await antiLinkHandler(message, CONFIG);
     await messageMonitorHandler(message, CONFIG);
-
 });
 
 // PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
@@ -301,3 +335,4 @@ client.on('interactionCreate', async (interaction) => {
 });
 
 client.login(CONFIG.TOKEN);
+
