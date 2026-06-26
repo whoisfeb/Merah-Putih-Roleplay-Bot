@@ -16,7 +16,7 @@ async function handleSendMessage(interaction) {
 
     try {
         // 2. AMBIL VALUE DARI INPUT USER
-        const text = interaction.options.getString('teks');
+        let text = interaction.options.getString('teks');
         const file = interaction.options.getAttachment('file');
         const targetChannel = interaction.options.getChannel('channel');
         const targetUser = interaction.options.getUser('user');
@@ -33,6 +33,11 @@ async function handleSendMessage(interaction) {
             return await interaction.editReply({
                 content: '❌ Anda harus menentukan tujuan pengiriman! Pilih salah satu antara opsi **channel** atau **user**.'
             });
+        }
+
+        // PROSES OTOMATIS: Mengubah ketikan \n menjadi Enter / Baris Baru sungguhan
+        if (text) {
+            text = text.replaceAll('\\n', '\n');
         }
 
         // 3. SIAPKAN PAYLOAD PESAN
@@ -67,7 +72,8 @@ async function handleSendMessage(interaction) {
             .setDescription(`Pesan kontrol Anda telah sukses diteruskan ke target tujuan.`)
             .addFields(
                 { name: '📍 Tujuan', value: destinationName, inline: true },
-                { name: '📄 Detail Konten', value: text ? `\`\`\`${text.slice(0, 500)}\`\`\`` : '`Hanya File/Gambar`', inline: false }
+                // Code block (```) dihapus agar teks di laporan mendukung spasi & enter dengan rapi (Maksimal 1024 karakter Discord)
+                { name: '📄 Detail Konten', value: text ? text.slice(0, 1024) : '*Hanya File/Gambar*', inline: false }
             )
             .setTimestamp();
 
