@@ -1,0 +1,16 @@
+{
+  "anti-link": true,
+  "auto-karantina": true,
+  "commands": true,
+  "control": true,
+  "logs-discord": true,
+  "message-monitor": true,
+  "payment": false,
+  "report-staff": true,
+  "tiket-unban": true,
+  "tiket": true,
+  "welcomer": true,
+  "bot_prefix": "!",
+  "allow_slash_commands": true,
+  "help_command_response": "Halo! Berikut adalah daftar fitur bot Merah Putih..."
+}
