@@ -177,14 +177,6 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
         return interaction.showModal(modal);
       }
 
-      // ---- View rules button ----
-      if (interaction.isButton() && interaction.customId === 'lihat_rules') {
-        const rulesEmbed = new EmbedBuilder()
-          .setTitle('📜 Rules Laporan Staf')
-          .setDescription('Silakan sertakan bukti yang jelas (screenshot / logs) dan jangan melakukan fitnah. Semua laporan akan ditinjau oleh manajemen.')
-          .setColor('#ffcc00');
-        return interaction.reply({ embeds: [rulesEmbed], ephemeral: true });
-      }
 
       // ---- Modal submit: prepare paged select menu ----
       if (interaction.isModalSubmit() && interaction.customId === 'modal_report_staff') {
@@ -412,8 +404,7 @@ module.exports = function reportStaffHandler(client, CONFIG = {}) {
           .setFooter({ text: 'Ottibonynyo Mods | Merah Putih' });
 
         const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId('btn_report_staff').setLabel('Report Staff').setEmoji('⛔').setStyle(ButtonStyle.Primary),
-          new ButtonBuilder().setCustomId('lihat_rules').setLabel('Rules').setEmoji('📜').setStyle(ButtonStyle.Secondary)
+          new ButtonBuilder().setCustomId('btn_report_staff').setLabel('Report Staff').setEmoji('⛔').setStyle(ButtonStyle.Primary)
         );
 
         try {

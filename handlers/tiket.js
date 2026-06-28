@@ -184,7 +184,28 @@ module.exports = (client) => {
 
             const messages = await interaction.channel.messages.fetch({ limit: 100 });
             let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan: ${reason}\n----------------------------------------\n\n`;
-            messages.reverse().forEach(m => logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`);
+            // GANTI BAGIAN messages.reverse() YANG LAMA DENGAN INI:
+            messages.reverse().forEach(m => {
+                // 1. Tulis teks biasa jika ada
+                if (m.content) {
+                    logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`;
+                }
+
+                // 2. Cek apakah ada embed, jika ada, tulis isi field-nya
+                if (m.embeds && m.embeds.length > 0) {
+                    m.embeds.forEach(embed => {
+                        // Tulis judul embed jika perlu
+                        if (embed.title) logContent += `--- ${embed.title} ---\n`;
+                        
+                        // Tulis isi field (User, UCP, Karakter, Item)
+                        if (embed.fields) {
+                            embed.fields.forEach(field => {
+                                logContent += `${field.name}: ${field.value}\n`;
+                            });
+                        }
+                    });
+                }
+            });
 
             const logChannel = interaction.guild.channels.cache.get(LOG_CHANNEL_ID);
             if (logChannel) {
