@@ -77,9 +77,11 @@ module.exports = async (message, CONFIG) => {
     // Eksekusi Pelanggaran
     if (hasBadLink || isSpamImage) {
         try {
-            // Mengunci data teks asli dan mention pengirim sebelum dihapus
+            // Mengunci data penting sebelum pesan asli dihapus
             const isiPesanAsli = content;
             const pengirim = message.author;
+            // Menyalin Embed asli jika pesan dikirim lewat webhook / rich embed
+            const embedAsli = message.embeds.length > 0 ? message.embeds.map(e => EmbedBuilder.from(e)) : [];
 
             if (hasBadLink) {
                 await message.delete().catch(() => {});
@@ -105,14 +107,12 @@ module.exports = async (message, CONFIG) => {
                 .setTitle(titleEmbed)
                 .setDescription(`Pesan Anda ${triggerReason}. Klik tombol dalam 30 detik.`);
 
-            // DISINI PERBAIKANNYA: Menampilkan teks sesuai keinginan Anda
-            // PASTIKAN BARIS INI DIGANTI SEPERTI INI:
-const sentMessage = await message.channel.send({
-    content: `**Post by:** ${pengirim}\n\n${isiPesanAsli || '*[Hanya Gambar]*'}`,
-    embeds: message.embeds.length > 0 ? message.embeds.map(e => EmbedBuilder.from(e)) : [askEmbed],
-    components: [row]
-});
-
+            // Tampilan saat bot meminta konfirmasi pertama kali
+            const sentMessage = await message.channel.send({
+                content: `**Post by:** ${pengirim}\n${isiPesanAsli ? `\n${isiPesanAsli}` : ''}`,
+                embeds: embedAsli.length > 0 ? embedAsli : [askEmbed],
+                components: [row]
+            });
 
             const collector = sentMessage.createMessageComponentCollector({
                 componentType: ComponentType.Button,
@@ -135,12 +135,16 @@ const sentMessage = await message.channel.send({
 
                 if (interaction.customId === 'confirm_human') {
                     await interaction.reply({ 
-                        content: hasBadLink ? 'Pesan sedang dikirim ulang...' : 'Gambar Anda aman dan tidak dihapus.', 
+                        content: 'Pesan berhasil diverifikasi dan dikirim ulang.', 
                         flags: [MessageFlags.Ephemeral] 
                     }).catch(() => {});
                     
-                    if (hasBadLink && content) {
-                        await interaction.channel.send({ content: content }).catch(() => {});
+                    // PERBAIKAN UTAMA: Saat lolos tombol hijau, kirim utuh beserta Embed dan "Post by"
+                    if (hasBadLink) {
+                        await interaction.channel.send({ 
+                            content: `**Post by:** ${pengirim}\n${isiPesanAsli ? `\n${isiPesanAsli}` : ''}`,
+                            embeds: embedAsli 
+                        }).catch(() => {});
                     }
                     
                     await sentMessage.delete().catch(() => {});
