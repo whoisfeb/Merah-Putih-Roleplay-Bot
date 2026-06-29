@@ -106,11 +106,13 @@ module.exports = async (message, CONFIG) => {
                 .setDescription(`Pesan Anda ${triggerReason}. Klik tombol dalam 30 detik.`);
 
             // DISINI PERBAIKANNYA: Menampilkan teks sesuai keinginan Anda
-            const sentMessage = await message.channel.send({
-                content: `**Post by:** ${pengirim}\n\n${isiPesanAsli || '*[Hanya Gambar]*'}`,
-                embeds: [askEmbed],
-                components: [row]
-            });
+            // PASTIKAN BARIS INI DIGANTI SEPERTI INI:
+const sentMessage = await message.channel.send({
+    content: `**Post by:** ${pengirim}\n\n${isiPesanAsli || '*[Hanya Gambar]*'}`,
+    embeds: message.embeds.length > 0 ? message.embeds.map(e => EmbedBuilder.from(e)) : [askEmbed],
+    components: [row]
+});
+
 
             const collector = sentMessage.createMessageComponentCollector({
                 componentType: ComponentType.Button,
