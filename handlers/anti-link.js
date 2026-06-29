@@ -7,7 +7,7 @@ const {
     MessageFlags 
 } = require('discord.js');
 
-const ADMIN_ROLE_IDS = ['1392382455981412398', '1392382455981412393', '1392382455981412397', '1392382455947989066'];
+const ADMIN_ROLE_IDS = ['112233'];
 const BAD_LINKS = ["free-nitro", "discord-gift", "steam-promo", "bit.ly/badlink", "https://discord.gg", "https://discord.com", "discord.gg", "cherry-girls"];
 
 const imageCache = new Map(); 
@@ -70,14 +70,17 @@ module.exports = async (message, CONFIG) => {
 
         if (activeTimestamps.length > 2) {
             isSpamImage = true;
-            imageCache.delete(message.author.id); // Reset cache jika terdeteksi spam
+            imageCache.delete(message.author.id); 
         }
     }
 
     // Eksekusi Pelanggaran
     if (hasBadLink || isSpamImage) {
         try {
-            // JIKA LINK: Hapus pesan langsung. JIKA GAMBAR: Jangan hapus dulu!
+            // Mengunci data teks asli dan mention pengirim sebelum dihapus
+            const isiPesanAsli = content;
+            const pengirim = message.author;
+
             if (hasBadLink) {
                 await message.delete().catch(() => {});
             }
@@ -100,10 +103,11 @@ module.exports = async (message, CONFIG) => {
             const askEmbed = new EmbedBuilder()
                 .setColor('#FFFF00')
                 .setTitle(titleEmbed)
-                .setDescription(`${message.author}, pesan Anda ${triggerReason}. Klik tombol dalam 30 detik.`);
+                .setDescription(`Pesan Anda ${triggerReason}. Klik tombol dalam 30 detik.`);
 
+            // DISINI PERBAIKANNYA: Menampilkan teks sesuai keinginan Anda
             const sentMessage = await message.channel.send({
-                content: `${message.author}`,
+                content: `**Post by:** ${pengirim}\n\n${isiPesanAsli || '*[Hanya Gambar]*'}`,
                 embeds: [askEmbed],
                 components: [row]
             });
@@ -114,12 +118,10 @@ module.exports = async (message, CONFIG) => {
             });
 
             let isActioned = false;
-            
-            // PERBAIKAN: Mengunci status spam gambar agar nilainya tidak hilang saat waktu 30 detik habis
             const harusHapusGambar = isSpamImage; 
 
             collector.on('collect', async (interaction) => {
-                if (interaction.user.id !== message.author.id) {
+                if (interaction.user.id !== pengirim.id) {
                     return interaction.reply({ 
                         content: 'Tombol ini bukan untuk Anda!', 
                         flags: [MessageFlags.Ephemeral] 
@@ -130,7 +132,6 @@ module.exports = async (message, CONFIG) => {
                 collector.stop();
 
                 if (interaction.customId === 'confirm_human') {
-                    // JIKA KLIK HIJAU
                     await interaction.reply({ 
                         content: hasBadLink ? 'Pesan sedang dikirim ulang...' : 'Gambar Anda aman dan tidak dihapus.', 
                         flags: [MessageFlags.Ephemeral] 
@@ -142,14 +143,12 @@ module.exports = async (message, CONFIG) => {
                     
                     await sentMessage.delete().catch(() => {});
                 } else {
-                    // JIKA KLIK MERAH (BATAL)
                     if (harusHapusGambar) await message.delete().catch(() => {}); 
                     await applyAutoTimeout(message.member, sentMessage, triggerReason);
                 }
             });
 
             collector.on('end', async (collected, reason) => {
-                // JIKA DIABAIKAN (TIMEOUT TOMBOL HABIS)
                 if (!isActioned && reason === 'time') {
                     if (harusHapusGambar) await message.delete().catch(() => {}); 
                     await applyAutoTimeout(message.member, sentMessage, triggerReason);
