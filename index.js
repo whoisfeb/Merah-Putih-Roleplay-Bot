@@ -40,6 +40,9 @@ const { setupWelcomerHandler } = require('./handlers/welcomer');
 const { setupCommandsHandler } = require('./handlers/commands');
 const { setupAutoKarantinaHandler } = require('./handlers/auto-karantina');
 const { handleSendMessage } = require('./handlers/control.js');
+// Ganti baris impor giveaway Anda di bagian atas index.js menjadi seperti ini:
+const { handleGiveawayStart, handleGiveawayEnd } = require('./handlers/giveaway.js');
+
 
 
 // --- CONFIG ---
