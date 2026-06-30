@@ -17,7 +17,8 @@ const client = new Client({
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildModeration,
         GatewayIntentBits.GuildVoiceStates,
-        GatewayIntentBits.GuildPresences
+        GatewayIntentBits.GuildPresences,
+        GatewayIntentBits.GuildMessageReactions // Tambahkan ini agar bot bisa membaca klik reaksi emoji
     ],
     partials: [
         Partials.Message, 
@@ -27,6 +28,7 @@ const client = new Client({
         Partials.User
     ]
 });
+
 
 // Import Handlers
 const antiLinkHandler = require('./handlers/anti-link');
