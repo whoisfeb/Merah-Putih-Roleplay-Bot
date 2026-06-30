@@ -2,17 +2,14 @@ module.exports = (client) => {
     
     // 1. EVENT: Membuat pesan reaction role via chat
     client.on('messageCreate', async (message) => {
-        // Abaikan jika pesan dari bot atau tidak dimulai dengan prefix !
         if (message.author.bot || !message.content.startsWith('!')) return;
 
         const args = message.content.slice(1).trim().split(/ +/);
         const command = args.shift().toLowerCase();
 
         if (command === 'mreaction') {
-            console.log(`[Bot] Perintah !mreaction terdeteksi dari ${message.author.tag}`);
-
             if (!message.member.permissions.has('ManageRoles')) {
-                return message.reply('Kamu tidak punya izin (`ManageRoles`) untuk menjalankan perintah ini.');
+                return message.reply('Kamu tidak punya izin (`ManageRoles`).');
             }
 
             const emoji = args[0];       
@@ -21,7 +18,7 @@ module.exports = (client) => {
             const description = args.slice(3).join(' '); 
 
             if (!emoji || !roleMention || !endHourStr || !description) {
-                return message.reply('Format salah! Gunakan: `!mreaction [Emoji] [@Role] [Jam_24] [Keterangan]`\nContoh: `!mreaction 🎉 @Role 00 Info event`');
+                return message.reply('Format salah! Gunakan: `!mreaction [Emoji] [@Role] [Jam_24] [Keterangan]`');
             }
 
             const endHour = parseInt(endHourStr);
@@ -30,12 +27,8 @@ module.exports = (client) => {
             }
 
             const roleId = roleMention.replace(/[<@&>]/g, '');
-            
-            // PERBAIKAN: Menggunakan FETCH agar kebal dari masalah cache GitHub Actions yang kosong
             const role = await message.guild.roles.fetch(roleId).catch(() => null);
-            if (!role) {
-                return message.reply('Role tidak ditemukan! Pastikan kamu melakukan tag/mention pada rolenya dengan benar.');
-            }
+            if (!role) return message.reply('Role tidak ditemukan!');
 
             const displayHour = endHour < 10 ? `0${endHour}:00` : `${endHour}:00`;
 
@@ -46,19 +39,13 @@ module.exports = (client) => {
                 footer: { text: `Target: ${roleId} | Jam: ${endHour}` }
             };
 
-            try {
-                const reactionMessage = await message.channel.send({ embeds: [embed] });
-                await reactionMessage.react(emoji);
-                await message.delete().catch(() => {});
-                console.log(`[Bot] Berhasil membuat pesan reaction role untuk Role ID: ${roleId}`);
-            } catch (error) {
-                console.error('[Bot Error] Gagal mengirim pesan atau menempelkan emoji:', error);
-                message.reply(`Gagal membuat reaction role. Pastikan bot memiliki izin kirim embed dan menggunakan emoji yang valid.`);
-            }
+            const reactionMessage = await message.channel.send({ embeds: [embed] });
+            await reactionMessage.react(emoji);
+            await message.delete().catch(() => {});
         }
     });
 
-    // 2. EVENT: Mendeteksi klik reaksi (KEBAL RESTART 6 JAM)
+    // 2. EVENT: Mendeteksi klik reaksi (KEBAL RESTART GITHUB ACTIONS)
     client.on('messageReactionAdd', async (reaction, user) => {
         if (user.bot) return;
 
@@ -66,7 +53,6 @@ module.exports = (client) => {
             try { 
                 await reaction.fetch(); 
             } catch (error) { 
-                console.error('Gagal mengambil data pesan lama:', error);
                 return; 
             }
         }
@@ -77,13 +63,18 @@ module.exports = (client) => {
         const embed = message.embeds[0];
         if (!embed.footer || !embed.footer.text || !embed.footer.text.startsWith('Target:')) return;
 
+        // PERBAIKAN: Cara memecah string array yang benar dari footer
         const footerText = embed.footer.text;
-        const roleId = footerText.split('|')[0].replace('Target: ', '').trim();
-        const endHour = parseInt(footerText.split('|')[1].replace('Jam: ', '').trim());
+        const parts = footerText.split('|');
+        
+        const roleId = parts[0].replace('Target: ', '').trim();
+        const endHour = parseInt(parts[1].replace('Jam: ', '').trim());
 
+        // Ambil jam lokal saat ini (WIB)
         const wibTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
         const currentHour = wibTime.getHours();
 
+        // Pengecekan Batas Jam
         if (endHour === 0) {
             if (currentHour === 0) {
                 await reaction.users.remove(user.id).catch(() => {});
@@ -98,14 +89,20 @@ module.exports = (client) => {
             }
         }
 
+        // Proses pembagian role ke user
         const guild = message.guild;
         if (!guild) return;
 
-        const member = await guild.members.fetch(user.id).catch(() => {});
-        const role = await guild.roles.fetch(roleId).catch(() => null);
+        try {
+            const member = await guild.members.fetch(user.id).catch(() => null);
+            const role = await guild.roles.fetch(roleId).catch(() => null);
 
-        if (member && role) {
-            await member.roles.add(role).catch(console.error);
+            if (member && role) {
+                await member.roles.add(role);
+                console.log(`[Bot] Berhasil memberikan role ${role.name} kepada ${user.tag}`);
+            }
+        } catch (err) {
+            console.error('[Bot Error] Gagal memberikan role:', err);
         }
     });
 };
