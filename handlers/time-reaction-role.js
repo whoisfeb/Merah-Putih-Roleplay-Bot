@@ -45,7 +45,7 @@ module.exports = (client) => {
         }
     });
 
-    // 2. EVENT: Mendeteksi klik reaksi
+    // 2. EVENT: Mendeteksi klik reaksi (KEBAL RESTART GITHUB ACTIONS)
     client.on('messageReactionAdd', async (reaction, user) => {
         if (user.bot) return;
 
@@ -74,7 +74,6 @@ module.exports = (client) => {
             return;
         }
 
-        // Proses pemecahan string footer secara aman
         const footerText = embed.footer.text;
         console.log(`[DEBUG] Isi Footer terbaca: "${footerText}"`);
 
@@ -84,17 +83,19 @@ module.exports = (client) => {
             return;
         }
 
+        // FIX: Pembacaan string array menggunakan indeks [0] dan [1] agar tidak error
         const roleId = parts[0].replace('Target: ', '').trim();
         const endHour = parseInt(parts[1].replace('Jam: ', '').trim());
         console.log(`[DEBUG] Berhasil memisahkan data -> RoleID: ${roleId}, Jam Batas: ${endHour}`);
 
-        // Ambil jam lokal saat ini (WIB)
+        // Ambil jam lokal saat ini di zona waktu WIB (Asia/Jakarta)
         const wibTime = new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Jakarta"}));
         const currentHour = wibTime.getHours();
         console.log(`[DEBUG] Jam Server Terbaca saat ini (WIB): ${currentHour}:XX`);
 
-        // Pengecekan Batas Jam
+        // LOGIKA PENGECEKAN JAM BERAKHIR
         if (endHour === 0) {
+            // Jika diset sampai jam 12 malam (00:00), maka kunci saat jam menyentuh angka 0 ke atas
             if (currentHour === 0) {
                 console.log(`[DEBUG] Waktu Habis! Reaksi dihapus (Target Jam 12 Malam, Saat ini Jam 12 Malam).`);
                 await reaction.users.remove(user.id).catch(() => {});
@@ -102,6 +103,7 @@ module.exports = (client) => {
                 return;
             }
         } else {
+            // Jika jam berakhir selain jam 12 malam (misal jam 10 atau jam 12 siang)
             if (currentHour >= endHour) {
                 console.log(`[DEBUG] Waktu Habis! Reaksi dihapus (Jam Saat ini: ${currentHour} >= Jam Batas: ${endHour})`);
                 await reaction.users.remove(user.id).catch(() => {});
@@ -110,7 +112,7 @@ module.exports = (client) => {
             }
         }
 
-        // Proses pembagian role ke user
+        // Proses pembagian role ke user jika waktu masih valid
         const guild = message.guild;
         if (!guild) {
             console.log(`[DEBUG] Guild tidak terdeteksi.`);
