@@ -180,11 +180,12 @@ const commands = [
 
     {
         name: 'giveaway-start',
-        description: 'Memulai giveaway baru (Durasi bebas)',
+        description: 'Memulai giveaway baru berdasarkan target jam',
         options: [
             { name: 'hadiah', type: 3, description: 'Hadiah yang akan diberikan', required: true },
             { name: 'pemenang', type: 4, description: 'Jumlah pemenang yang diundi', required: true },
-            { name: 'keterangan', type: 3, description: 'Contoh: Berakhir 3 hari lagi (Senin jam 8 malam)', required: true }
+            { name: 'waktu', type: 3, description: 'Format jam: 21:00 atau format tanggal: 2026-07-03 21:00', required: true },
+            { name: 'hari_ke', type: 4, description: '0 = Hari ini, 1 = Besok, 3 = Tiga hari lagi (Bawaan: 0 / Hari ini)', required: false }
         ],
     },
     {
