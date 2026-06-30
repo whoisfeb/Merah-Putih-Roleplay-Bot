@@ -40,7 +40,6 @@ const { setupWelcomerHandler } = require('./handlers/welcomer');
 const { setupCommandsHandler } = require('./handlers/commands');
 const { setupAutoKarantinaHandler } = require('./handlers/auto-karantina');
 const { handleSendMessage } = require('./handlers/control.js');
-const { handleGiveaway } = require('./handlers/giveaway.js');
 
 
 // --- CONFIG ---
@@ -177,27 +176,19 @@ const RANDOM_MESSAGES = [
 const commands = [
 
     {
-        name: 'giveaway',
-        description: 'Membuat giveaway baru',
+        name: 'giveaway-start',
+        description: 'Memulai giveaway baru (Durasi bebas)',
         options: [
-            { 
-                name: 'durasi', 
-                type: 3, 
-                description: 'Contoh: 10m (menit), 1h (jam)', 
-                required: true 
-            },
-            { 
-                name: 'pemenang', 
-                type: 4, 
-                description: 'Jumlah pemenang yang diundi', 
-                required: true 
-            },
-            { 
-                name: 'hadiah', 
-                type: 3, 
-                description: 'Hadiah yang akan diberikan', 
-                required: true 
-            }
+            { name: 'hadiah', type: 3, description: 'Hadiah yang akan diberikan', required: true },
+            { name: 'pemenang', type: 4, description: 'Jumlah pemenang yang diundi', required: true },
+            { name: 'keterangan', type: 3, description: 'Contoh: Berakhir 3 hari lagi (Senin jam 8 malam)', required: true }
+        ],
+    },
+    {
+        name: 'giveaway-end',
+        description: 'Mengakhiri dan mengundi giveaway secara manual',
+        options: [
+            { name: 'message_id', type: 3, description: 'Masukkan ID Pesan giveaway yang ingin diundi', required: true }
         ],
     },
     { name: 'payment', description: 'Menampilkan informasi metode pembayaran resmi store' },
@@ -328,6 +319,25 @@ client.on('messageCreate', async (message) => {
 // PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
 client.on('interactionCreate', async (interaction) => {
     // 1. Jalankan handler payment SEGERA
+
+    if (interaction.isChatInputCommand() && interaction.commandName === 'giveaway-start') {
+        try {
+            await handleGiveawayStart(interaction);
+        } catch (err) {
+            console.error('[GIVEAWAY START ERROR]', err);
+        }
+        return;
+    }
+
+    // 4. LOGIKA UNTUK END/UNDI GIVEAWAY
+    if (interaction.isChatInputCommand() && interaction.commandName === 'giveaway-end') {
+        try {
+            await handleGiveawayEnd(interaction);
+        } catch (err) {
+            console.error('[GIVEAWAY END ERROR]', err);
+        }
+        return;
+    }
     if ((interaction.isChatInputCommand() && interaction.commandName === 'payment') ||
         (interaction.isButton() && ['pay_bank_info', 'pay_gopay_info', 'pay_qris_info'].includes(interaction.customId))) {
         try {
@@ -347,17 +357,6 @@ client.on('interactionCreate', async (interaction) => {
         }
         return; // Hentikan eksekusi setelah selesai
     }
-
-    // 3. LOGIKA UNTUK GIVEAWAY HANDLER
-    if (interaction.isChatInputCommand() && interaction.commandName === 'giveaway') {
-        try {
-            await handleGiveaway(interaction);
-        } catch (err) {
-            console.error('[GIVEAWAY ERROR]', err);
-        }
-        return; // Hentikan eksekusi setelah selesai
-    }
 });
 
 client.login(CONFIG.TOKEN);
-
