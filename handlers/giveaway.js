@@ -72,19 +72,21 @@ async function handleGiveawayEnd(interaction) {
         return interaction.reply({ content: 'Hanya Admin atau Staff yang boleh menekan tombol undi ini!', ephemeral: true });
     }
 
+    // --- UBAH DARI interaction.reply MENJADI DEFER REPLY DI BAWAH INI ---
+    await interaction.deferReply({ ephemeral: true }); 
+
     const pesanTerbaru = interaction.message;
-    const reaksi = pesanTerbaru.reactions.cache.get('🎉');
     
+    // Ambil reaksi emoji 🎉 secara aman
+    const reaksi = pesanTerbaru.reactions.cache.get('🎉');
     if (!reaksi) {
-        return interaction.reply({ content: 'Reaksi emoji 🎉 tidak ditemukan pada pesan ini.', ephemeral: true });
+        return interaction.editReply({ content: 'Reaksi emoji 🎉 tidak ditemukan pada pesan ini.' });
     }
 
-    await interaction.reply({ content: 'Sedang memproses pengundian...', ephemeral: true });
-
     try {
-        const embedLama = pesanTerbaru.embeds;
+        const embedLama = pesanTerbaru.embeds[0]; // Tambahkan indeks [0] agar membaca objek embed pertama secara tepat
         if (!embedLama || !embedLama.description) {
-            return interaction.followUp({ content: 'Pesan giveaway tidak valid.', ephemeral: true });
+            return interaction.editReply({ content: 'Pesan giveaway tidak valid.' });
         }
 
         const barisTeks = embedLama.description.split('\n');
@@ -105,6 +107,7 @@ async function handleGiveawayEnd(interaction) {
 
         if (peserta.length === 0) {
             await pesanTerbaru.edit({ components: [] });
+            await interaction.editReply({ content: 'Undian selesai diperiksa.' });
             return interaction.channel.send(`Giveaway untuk **${hadiah}** telah berakhir, namun tidak ada peserta yang ikut.`);
         }
 
@@ -121,13 +124,20 @@ async function handleGiveawayEnd(interaction) {
             footer: { text: 'Telah selesai diundi oleh Admin' }
         };
 
+        // Update pesan utama, hapus tombol merahnya, dan tag pemenang
         await pesanTerbaru.edit({ embeds: [embedSelesai], components: [] });
+        
+        // Beri tahu admin bahwa proses sukses
+        await interaction.editReply({ content: 'Berhasil mengundi pemenang!' });
+        
+        // Tag pemenang di channel chat
         await interaction.channel.send(`Selamat kepada ${pemenangTerpilih.join(', ')}! Kamu berhasil memenangkan **${hadiah}**! 🎉`);
 
     } catch (error) {
         console.error(error);
-        return interaction.followUp({ content: 'Terjadi kesalahan sistem saat mencoba mengundi giveaway.', ephemeral: true });
+        return interaction.editReply({ content: 'Terjadi kesalahan sistem saat mencoba mengundi giveaway.' });
     }
 }
+
 
 module.exports = { handleGiveawayStart, handleGiveawayEnd };
