@@ -8,16 +8,13 @@ async function handleGiveawayStart(interaction) {
     const hadiah = interaction.options.getString('hadiah');
     const jumlahPemenang = interaction.options.getInteger('pemenang');
     const waktuInput = interaction.options.getString('waktu').trim();
-    const hariKe = interaction.options.getInteger('hari_ke') || 0; // Default 0 (hari ini)
+    const hariKe = interaction.options.getInteger('hari_ke') || 0;
 
     let targetDate;
 
-    // Cek apakah user memasukkan format tanggal penuh (YYYY-MM-DD HH:MM) atau hanya jam (HH:MM)
     if (waktuInput.includes('-')) {
-        // Jika input berupa tanggal lengkap seperti "2026-07-03 21:00"
         targetDate = new Date(waktuInput);
     } else {
-        // Jika input hanya jam seperti "21:00"
         const [jam, menit] = waktuInput.split(':');
         if (!jam || !menit || isNaN(jam) || isNaN(menit)) {
             return interaction.reply({ content: 'Format jam salah! Gunakan format `21:00` atau `09:30`.', ephemeral: true });
@@ -26,13 +23,11 @@ async function handleGiveawayStart(interaction) {
         targetDate = new Date();
         targetDate.setHours(parseInt(jam), parseInt(menit), 0, 0);
         
-        // Tambahkan hari jika memilih opsi hari_ke (misal besok atau 3 hari lagi)
         if (hariKe > 0) {
             targetDate.setDate(targetDate.getDate() + hariKe);
         }
     }
 
-    // Validasi apakah waktu yang dimasukkan sudah lewat atau tidak valid
     if (isNaN(targetDate.getTime())) {
         return interaction.reply({ content: 'Format waktu tidak dikenali! Gunakan `21:00` atau `2026-07-03 21:00`.', ephemeral: true });
     }
@@ -41,7 +36,6 @@ async function handleGiveawayStart(interaction) {
         return interaction.reply({ content: 'Waktu yang Anda masukkan sudah terlewat! Pastikan jam target berada di masa depan.', ephemeral: true });
     }
 
-    // Konversi ke format UNIX untuk fitur hitung mundur otomatis Discord
     const waktuSelesaiUnix = Math.floor(targetDate.getTime() / 1000);
 
     const embedAwal = {
@@ -72,21 +66,26 @@ async function handleGiveawayEnd(interaction) {
         return interaction.reply({ content: 'Hanya Admin atau Staff yang boleh menekan tombol undi ini!', ephemeral: true });
     }
 
-    // --- UBAH DARI interaction.reply MENJADI DEFER REPLY DI BAWAH INI ---
-    await interaction.deferReply({ ephemeral: true }); 
-
-    const pesanTerbaru = interaction.message;
-    
-    // Ambil reaksi emoji 🎉 secara aman
-    const reaksi = pesanTerbaru.reactions.cache.get('🎉');
-    if (!reaksi) {
-        return interaction.editReply({ content: 'Reaksi emoji 🎉 tidak ditemukan pada pesan ini.' });
-    }
+    // Gunakan deferReply agar interaksi tidak timeout (This interaction failed)
+    await interaction.deferReply({ ephemeral: true });
 
     try {
-        const embedLama = pesanTerbaru.embeds[0]; // Tambahkan indeks [0] agar membaca objek embed pertama secara tepat
+        // PERBAIKAN: Ambil data pesan secara aman langsung dari channel
+        const channel = interaction.channel;
+        const pesanTerbaru = await channel.messages.fetch(interaction.message.id);
+
+        if (!pesanTerbaru) {
+            return interaction.editReply({ content: 'Gagal memuat pesan asli giveaway. Coba ulangi beberapa saat lagi.' });
+        }
+
+        const reaksi = pesanTerbaru.reactions.cache.get('🎉');
+        if (!reaksi) {
+            return interaction.editReply({ content: 'Reaksi emoji 🎉 tidak ditemukan pada pesan ini.' });
+        }
+
+        const embedLama = pesanTerbaru.embeds[0];
         if (!embedLama || !embedLama.description) {
-            return interaction.editReply({ content: 'Pesan giveaway tidak valid.' });
+            return interaction.editReply({ content: 'Struktur komponen pesan giveaway tidak valid.' });
         }
 
         const barisTeks = embedLama.description.split('\n');
@@ -102,12 +101,13 @@ async function handleGiveawayEnd(interaction) {
             }
         }
 
+        // Ambil data user yang menekan emoji
         const users = await reaksi.users.fetch();
         const peserta = users.filter(user => !user.bot).map(user => user.toString());
 
         if (peserta.length === 0) {
             await pesanTerbaru.edit({ components: [] });
-            await interaction.editReply({ content: 'Undian selesai diperiksa.' });
+            await interaction.editReply({ content: 'Selesai diperiksa. Tidak ada peserta yang ikut.' });
             return interaction.channel.send(`Giveaway untuk **${hadiah}** telah berakhir, namun tidak ada peserta yang ikut.`);
         }
 
@@ -124,20 +124,15 @@ async function handleGiveawayEnd(interaction) {
             footer: { text: 'Telah selesai diundi oleh Admin' }
         };
 
-        // Update pesan utama, hapus tombol merahnya, dan tag pemenang
+        // Edit pesan utama, hapus tombol merahnya, dan umumkan pemenang
         await pesanTerbaru.edit({ embeds: [embedSelesai], components: [] });
-        
-        // Beri tahu admin bahwa proses sukses
-        await interaction.editReply({ content: 'Berhasil mengundi pemenang!' });
-        
-        // Tag pemenang di channel chat
+        await interaction.editReply({ content: 'Berhasil mengundi giveaway!' });
         await interaction.channel.send(`Selamat kepada ${pemenangTerpilih.join(', ')}! Kamu berhasil memenangkan **${hadiah}**! 🎉`);
 
     } catch (error) {
-        console.error(error);
-        return interaction.editReply({ content: 'Terjadi kesalahan sistem saat mencoba mengundi giveaway.' });
+        console.error('[DETAILED GIVEAWAY END ERROR]', error);
+        return interaction.editReply({ content: 'Terjadi kesalahan sistem saat mencoba membaca struktur pesan.' });
     }
 }
-
 
 module.exports = { handleGiveawayStart, handleGiveawayEnd };

@@ -35,6 +35,9 @@ const ticketHandler = require('./handlers/tiket');
 const unbanHandler = require('./handlers/tiket-unban');
 const paymentHandler = require('./handlers/payment');
 const reportStaffHandler = require('./handlers/report-staff');
+// Tambahkan ini di bagian bawah daftar require handler kamu
+const timeReactionRoleHandler = require('./handlers/timereactionrole.js');
+
 const { setupLogsHandler } = require('./handlers/logs-discord');
 const { setupWelcomerHandler } = require('./handlers/welcomer');
 const { setupCommandsHandler } = require('./handlers/commands');
@@ -300,6 +303,7 @@ client.once('ready', async () => {
     unbanHandler(client);
     setupAutoKarantinaHandler(client);
     reportStaffHandler(client);
+    timeReactionRoleHandler(client); 
 
     setInterval(() => {
         const announceChannel = client.channels.cache.get(CONFIG.ANNOUNCE_CHANNEL);
