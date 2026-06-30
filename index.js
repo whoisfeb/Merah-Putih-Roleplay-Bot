@@ -40,6 +40,7 @@ const { setupWelcomerHandler } = require('./handlers/welcomer');
 const { setupCommandsHandler } = require('./handlers/commands');
 const { setupAutoKarantinaHandler } = require('./handlers/auto-karantina');
 const { handleSendMessage } = require('./handlers/control.js');
+const { handleGiveaway } = require('./handlers/giveaway.js');
 
 
 // --- CONFIG ---
@@ -174,6 +175,31 @@ const RANDOM_MESSAGES = [
 
 // --- REGISTER COMMANDS ---
 const commands = [
+
+    {
+        name: 'giveaway',
+        description: 'Membuat giveaway baru',
+        options: [
+            { 
+                name: 'durasi', 
+                type: 3, 
+                description: 'Contoh: 10m (menit), 1h (jam)', 
+                required: true 
+            },
+            { 
+                name: 'pemenang', 
+                type: 4, 
+                description: 'Jumlah pemenang yang diundi', 
+                required: true 
+            },
+            { 
+                name: 'hadiah', 
+                type: 3, 
+                description: 'Hadiah yang akan diberikan', 
+                required: true 
+            }
+        ],
+    },
     { name: 'payment', description: 'Menampilkan informasi metode pembayaran resmi store' },
     { name: 'open-admin', description: 'Memunculkan tombol pendaftaran admin' },
     {
@@ -321,6 +347,17 @@ client.on('interactionCreate', async (interaction) => {
         }
         return; // Hentikan eksekusi setelah selesai
     }
+
+    // 3. LOGIKA UNTUK GIVEAWAY HANDLER
+    if (interaction.isChatInputCommand() && interaction.commandName === 'giveaway') {
+        try {
+            await handleGiveaway(interaction);
+        } catch (err) {
+            console.error('[GIVEAWAY ERROR]', err);
+        }
+        return; // Hentikan eksekusi setelah selesai
+    }
 });
 
 client.login(CONFIG.TOKEN);
+
