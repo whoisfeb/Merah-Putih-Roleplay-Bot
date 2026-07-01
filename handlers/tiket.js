@@ -48,25 +48,47 @@ async function safeReply(interaction, options = {}) {
 }
 
 module.exports = (client) => {
+    // --- PANEL UTAMA SETUP ---
+        // HAPUS SCRIPT LAMA DAN GANTI DENGAN YANG INI:
     client.on('messageCreate', async (message) => {
-        if (!message.content || message.author.bot || !message.member) return;
+        if (message.author.bot || !message.content.startsWith('!')) return;
 
-        // 1. PERINTAH SETUP TIKET (Tetap Sama & Mandiri)
-        if (message.content.startsWith('!setup-topup') && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            const args = message.content.slice('!setup-topup'.length).trim();
-            const customDescription = args.length > 0 
-                ? args 
-                : 'Silakan klik tombol di bawah untuk memulai proses Top Up atau melihat aturan.';
+        // Memecah argumen berdasarkan spasi
+        const args = message.content.slice(1).trim().split(/ +/);
+        const command = args.shift().toLowerCase();
+
+        // Validasi Admin untuk semua perintah topup
+        const topupCommands = ['setup-topup', 'topup-close', 'topup-open'];
+        if (topupCommands.includes(command)) {
+            if (!message.member || !message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+                return message.reply('❌ Kamu tidak memiliki izin Administrator untuk menggunakan perintah ini!');
+            }
+        }
+
+        // ==================== PERINTAH: !setup-topup ====================
+        if (command === 'setup-topup') {
+            // Mengambil seluruh sisa teks setelah perintah sebagai pesan kustom
+            const customDescription = args.join(' ');
+            const defaultDescription = 'Silakan klik tombol di bawah untuk memulai proses Top Up atau melihat aturan.';
+            const finalDescription = customDescription.length > 0 ? customDescription : defaultDescription;
 
             const embed = new EmbedBuilder()
-                .setTitle('🛒 Merah Putih Roleplay - Tiket Layanan')
-                .setDescription(`${customDescription}\n\n🟢 **STATUS: BUKA**`) // Default awal buka
-                .setColor('#5865F2')
+                .setTitle('🛒 Merah Putih Roleplay - Donation Ticket')
+                .setDescription(`**Status:** 🟢 OPEN\n\n${finalDescription}`)
+                .setColor('#00ff37')
                 .setFooter({ text: 'Ottibonynyo Mods | Merah Putih' });
 
             const row = new ActionRowBuilder().addComponents(
-                new ButtonBuilder().setCustomId('buka_modal').setLabel('Buka Tiket').setEmoji('🎫').setStyle(ButtonStyle.Primary),
-                new ButtonBuilder().setCustomId('lihat_rules').setLabel('Rules Top Up').setEmoji('📜').setStyle(ButtonStyle.Secondary)
+                new ButtonBuilder()
+                    .setCustomId('buka_modal')
+                    .setLabel('Buka Tiket')
+                    .setEmoji('🎫')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('lihat_rules')
+                    .setLabel('Rules Top Up')
+                    .setEmoji('📜')
+                    .setStyle(ButtonStyle.Secondary)
             );
 
             try {
@@ -77,81 +99,105 @@ module.exports = (client) => {
             }
         }
 
-        // 2. PERINTAH OPEN / CLOSE (Membaca langsung dari Pesan Target)
-        if (message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            const args = message.content.trim().split(/ +/);
-            const command = args.shift().toLowerCase(); // Mengambil kata pertama (!topup)
-            const action = args.shift()?.toLowerCase(); // Mengambil kata kedua (open/close)
+        // ==================== PERINTAH: !topup-close ====================
+        if (command === 'topup-close') {
+            const targetMessageId = args[0]; // Mengambil ID Pesan dari argumen pertama
+            if (!targetMessageId) {
+                return message.reply('Format salah! Gunakan: `!topup-close [MessageID]`\nContoh: `!topup-close 123456789012345678`');
+            }
 
-            if (command === '!topup' && (action === 'open' || action === 'close')) {
-                const isOpenAction = action === 'open';
-
-                // CARA MENEMUKAN PESAN TARGET: 
-                // 1. Melalui reply pesan target, ATAU 2. Mengetik ID pesan setelah perintah (Contoh: !topup close 123456789)
-                let targetMessage = null;
+            try {
+                const targetMessage = await message.channel.messages.fetch(targetMessageId).catch(() => null);
                 
-                if (message.reference) {
-                    const repliedMsg = await message.channel.messages.fetch(message.reference.messageId).catch(() => null);
-                    if (repliedMsg && repliedMsg.embeds.length > 0) targetMessage = repliedMsg;
-                } else if (args[0]) {
-                    targetMessage = await message.channel.messages.fetch(args[0]).catch(() => null);
-                }
-
                 if (!targetMessage) {
-                    const failReply = await message.channel.send('❌ **Gagal:** Balas (*reply*) pesan panel utama atau masukkan ID pesan panel setelah perintah!');
-                    setTimeout(() => failReply.delete().catch(() => {}), 5000);
-                    return;
+                    return message.reply('❌ Pesan tidak ditemukan di channel ini! Periksa kembali ID pesan Anda.');
                 }
 
-                if (message.deletable) await message.delete().catch(() => {});
+                if (!targetMessage.embeds || targetMessage.embeds.length === 0) {
+                    return message.reply('❌ Pesan tersebut tidak memiliki embed.');
+                }
 
-                // LOGIKA EKSTRAKSI DATA LANGSUNG DARI EMBED LAMA DISCORD
-                const oldEmbed = targetMessage.embeds[0];
-                const oldDescription = oldEmbed.description || '';
+                const oldEmbed = targetMessage.embeds[0]; // Ambil data embed pertama
                 
-                // Memisahkan teks deskripsi kustom dengan teks status lama (membuang baris status paling bawah)
-                const descriptionLines = oldDescription.split('\n\n');
-                if (descriptionLines.length > 1) descriptionLines.pop(); 
-                const originalDescription = descriptionLines.join('\n\n');
+                if (!oldEmbed.description || !oldEmbed.description.includes('🟢 OPEN')) {
+                    return message.reply('❌ Pesan ini bukan pesan Top Up aktif atau sudah ditutup sebelumnya.');
+                }
 
-                const statusLabel = isOpenAction ? 'BUKA' : 'TUTUP';
-                const statusEmoji = isOpenAction ? '🟢' : '🔴';
-                const embedColor = isOpenAction ? '#5865F2' : '#ED4245';
-
-                // Susun ulang Embed Baru
+                // Edit embed lama: ubah warna ke merah dan ganti teks status
                 const updatedEmbed = EmbedBuilder.from(oldEmbed)
-                    .setDescription(`${originalDescription}\n\n${statusEmoji} **STATUS: ${statusLabel}**`)
-                    .setColor(embedColor);
+                    .setColor('#ff0000') 
+                    .setDescription(oldEmbed.description.replace('🟢 OPEN', '🔴 CLOSED'));
 
-                // Susun ulang Tombol Baru secara dinamis
-                const updatedRow = new ActionRowBuilder();
-                
-                if (isOpenAction) {
-                    // Jika OPEN: masukkan kembali tombol Buka Tiket
-                    updatedRow.addComponents(
-                        new ButtonBuilder().setCustomId('buka_modal').setLabel('Buka Tiket').setEmoji('🎫').setStyle(ButtonStyle.Primary)
-                    );
-                }
-                
-                // Tombol Rules selalu dipertahankan
-                updatedRow.addComponents(
-                    new ButtonBuilder().setCustomId('lihat_rules').setLabel('Rules Top Up').setEmoji('📜').setStyle(ButtonStyle.Secondary)
+                // Menghilangkan tombol Buka Tiket, sisakan tombol Rules
+                const closedRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('lihat_rules')
+                        .setLabel('Rules Top Up')
+                        .setEmoji('📜')
+                        .setStyle(ButtonStyle.Secondary)
                 );
 
-                try {
-                    // Terapkan perubahan langsung ke Discord
-                    await targetMessage.edit({ embeds: [updatedEmbed], components: [updatedRow] });
-                    
-                    const successReply = await message.channel.send(`${statusEmoji} Status panel berhasil diubah menjadi **${statusLabel}** dan tombol disesuaikan.`);
-                    setTimeout(() => successReply.delete().catch(() => {}), 3000);
-                } catch (err) {
-                    console.error('Gagal memperbarui panel tiket:', err);
+                await targetMessage.edit({ embeds: [updatedEmbed], components: [closedRow] });
+                if (message.deletable) await message.delete().catch(() => {});
+
+            } catch (error) {
+                console.error('Gagal menutup topup:', error);
+                message.reply('❌ Terjadi kesalahan saat mencoba menutup pendaftaran topup.');
+            }
+        }
+
+        // ==================== PERINTAH: !topup-open ====================
+        if (command === 'topup-open') {
+            const targetMessageId = args[0]; // Mengambil ID Pesan dari argumen pertama
+            if (!targetMessageId) {
+                return message.reply('Format salah! Gunakan: `!topup-open [MessageID]`\nContoh: `!topup-open 123456789012345678`');
+            }
+
+            try {
+                const targetMessage = await message.channel.messages.fetch(targetMessageId).catch(() => null);
+                
+                if (!targetMessage) {
+                    return message.reply('❌ Pesan tidak ditemukan di channel ini! Periksa kembali ID pesan Anda.');
                 }
+
+                if (!targetMessage.embeds || targetMessage.embeds.length === 0) {
+                    return message.reply('❌ Pesan tersebut tidak memiliki embed.');
+                }
+
+                const oldEmbed = targetMessage.embeds[0]; // Ambil data embed pertama
+                
+                if (!oldEmbed.description || !oldEmbed.description.includes('🔴 CLOSED')) {
+                    return message.reply('❌ Pesan ini bukan pesan Top Up yang sedang ditutup.');
+                }
+
+                // Edit embed lama: kembalikan warna hijau dan ganti teks status ke OPEN
+                const updatedEmbed = EmbedBuilder.from(oldEmbed)
+                    .setColor('#00ff37') 
+                    .setDescription(oldEmbed.description.replace('🔴 CLOSED', '🟢 OPEN'));
+
+                // Memunculkan kembali kedua tombol
+                const openRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('buka_modal')
+                        .setLabel('Buka Tiket')
+                        .setEmoji('🎫')
+                        .setStyle(ButtonStyle.Primary),
+                    new ButtonBuilder()
+                        .setCustomId('lihat_rules')
+                        .setLabel('Rules Top Up')
+                        .setEmoji('📜')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+
+                await targetMessage.edit({ embeds: [updatedEmbed], components: [openRow] });
+                if (message.deletable) await message.delete().catch(() => {});
+
+            } catch (error) {
+                console.error('Gagal membuka topup:', error);
+                message.reply('❌ Terjadi kesalahan saat mencoba membuka kembali pendaftaran topup.');
             }
         }
     });
-
-
 
 
     client.on('interactionCreate', async (interaction) => {
@@ -374,45 +420,61 @@ module.exports = (client) => {
 
         if (interaction.isButton() && interaction.customId === 'buka_modal') {
 
-    // ===== TAMBAHKAN PENGECEKAN STATUS DI SINI =====
-    if (!isTopupOpen) {
-        return safeReply(interaction, {
-            content: '❌ **Maaf, layanan Top Up saat ini sedang ditutup.** Silakan coba lagi nanti atau tunggu info selanjutnya dari Admin.',
-            flags: 64 // Mengirim pesan rahasia (ephemeral) agar tidak mengotori channel
-        });
-    }
-    // ===============================================
+            const category = interaction.guild.channels.cache.get(CATEGORY_ID);
 
-    const category = interaction.guild.channels.cache.get(CATEGORY_ID);
+            if (!category) return safeReply(interaction, { content: "Error: Kategori tidak ditemukan!", flags: 64 });
 
-    if (!category) return safeReply(interaction, { content: "Error: Kategori tidak ditemukan!", flags: 64 });
 
-    const existingTicket = category.children.cache.find(channel =>
-        channel.name.includes(interaction.user.username.toLowerCase())
-    );
 
-    if (existingTicket) {
-        return safeReply(interaction, {
-            content: `❌ Anda sudah memiliki tiket yang masih terbuka di <#${existingTicket.id}>.`,
-            flags: 64
-        });
-    }
+            const existingTicket = category.children.cache.find(channel =>
 
-    const modal = new ModalBuilder().setCustomId('form_tiket').setTitle('Formulir Detail Pesanan');
-    const ucp = new TextInputBuilder().setCustomId('ucp').setLabel("UCP / ID AKUN").setPlaceholder("Masukkan ID Akun Anda").setStyle(TextInputStyle.Short).setRequired(true);
-    const nama = new TextInputBuilder().setCustomId('nama').setLabel("NAMA KARAKTER").setPlaceholder("Masukkan Nama Karakter").setStyle(TextInputStyle.Short).setRequired(true);
-    const item = new TextInputBuilder().setCustomId('item').setLabel("ITEM TOPUP").setPlaceholder("Contoh: 1000 Gold / Mobil Skyline").setStyle(TextInputStyle.Paragraph).setRequired(true);
+                channel.name.includes(interaction.user.username.toLowerCase())
 
-    modal.addComponents(new ActionRowBuilder().addComponents(ucp), new ActionRowBuilder().addComponents(nama), new ActionRowBuilder().addComponents(item));
-    try {
-        await interaction.showModal(modal);
-    } catch (err) {
-        console.error('Gagal showModal:', err);
-        await safeReply(interaction, { content: '❌ Gagal membuka formulir. Coba lagi.', flags: 64 });
-    }
-    return;
-}
+            );
 
+
+
+            if (existingTicket) {
+
+                return safeReply(interaction, {
+
+                    content: `❌ Anda sudah memiliki tiket yang masih terbuka di <#${existingTicket.id}>.`,
+
+                    flags: 64
+
+                });
+
+            }
+
+
+
+            const modal = new ModalBuilder().setCustomId('form_tiket').setTitle('Formulir Detail Pesanan');
+
+            const ucp = new TextInputBuilder().setCustomId('ucp').setLabel("UCP / ID AKUN").setPlaceholder("Masukkan ID Akun Anda").setStyle(TextInputStyle.Short).setRequired(true);
+
+            const nama = new TextInputBuilder().setCustomId('nama').setLabel("NAMA KARAKTER").setPlaceholder("Masukkan Nama Karakter").setStyle(TextInputStyle.Short).setRequired(true);
+
+            const item = new TextInputBuilder().setCustomId('item').setLabel("ITEM TOPUP").setPlaceholder("Contoh: 1000 Gold / Mobil Skyline").setStyle(TextInputStyle.Paragraph).setRequired(true);
+
+
+
+            modal.addComponents(new ActionRowBuilder().addComponents(ucp), new ActionRowBuilder().addComponents(nama), new ActionRowBuilder().addComponents(item));
+
+            try {
+
+                await interaction.showModal(modal);
+
+            } catch (err) {
+
+                console.error('Gagal showModal:', err);
+
+                await safeReply(interaction, { content: '❌ Gagal membuka formulir. Coba lagi.', flags: 64 });
+
+            }
+
+            return;
+
+        }
 
 
 
