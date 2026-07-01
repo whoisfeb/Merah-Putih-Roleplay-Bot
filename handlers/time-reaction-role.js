@@ -1,20 +1,31 @@
 const { EmbedBuilder } = require('discord.js');
 
+// ==================== CONFIGURATION ====================
+// Ganti angka di bawah ini dengan ID Role yang boleh menggunakan perintah !mreaction, !stopmreaction, dan !startmreaction
+const ALLOWED_ROLE_ID = '1514189664863518811'; 
+// =======================================================
+
 module.exports = (client) => {
     
-    // 1. EVENT: Mendeteksi pesan chat (!mreaction dan !stopmreaction)
+    // 1. EVENT: Mendeteksi pesan chat (!mreaction, !stopmreaction, dan !startmreaction)
     client.on('messageCreate', async (message) => {
         if (message.author.bot || !message.content.startsWith('!')) return;
 
         const args = message.content.slice(1).trim().split(/ +/);
         const command = args.shift().toLowerCase();
 
+        // Daftar perintah yang butuh validasi role khusus
+        const reactionCommands = ['mreaction', 'stopmreaction', 'startmreaction'];
+
+        if (reactionCommands.includes(command)) {
+            // Cek apakah member memiliki ID Role khusus yang diizinkan
+            if (!message.member.roles.cache.has(ALLOWED_ROLE_ID)) {
+                return message.reply('❌ Kamu tidak memiliki role yang diizinkan untuk menggunakan perintah ini!');
+            }
+        }
+
         // ==================== PERINTAH: !mreaction ====================
         if (command === 'mreaction') {
-            if (!message.member.permissions.has('ManageRoles')) {
-                return message.reply('Kamu tidak punya izin (`ManageRoles`) untuk perintah ini.');
-            }
-
             const emoji = args[0];       
             const roleMention = args[1]; 
             const description = args.slice(2).join(' '); 
@@ -43,19 +54,14 @@ module.exports = (client) => {
             }
         }
 
-        // ==================== PERINTAH BARU: !stopmreaction ====================
+        // ==================== PERINTAH: !stopmreaction ====================
         if (command === 'stopmreaction') {
-            if (!message.member.permissions.has('ManageRoles')) {
-                return message.reply('Kamu tidak punya izin (`ManageRoles`) untuk perintah ini.');
-            }
-
             const targetMessageId = args[0];
             if (!targetMessageId) {
                 return message.reply('Format salah! Gunakan: `!stopmreaction [MessageID]`\nContoh: `!stopmreaction 123456789012345678`');
             }
 
             try {
-                // Ambil target pesan di channel tempat perintah diketik
                 const targetMessage = await message.channel.messages.fetch(targetMessageId).catch(() => null);
                 
                 if (!targetMessage) {
@@ -68,12 +74,10 @@ module.exports = (client) => {
 
                 const oldEmbed = targetMessage.embeds[0];
                 
-                // Cek apakah pesan tersebut memang buatan sistem mreaction
                 if (!oldEmbed.footer || !oldEmbed.footer.text || !oldEmbed.footer.text.startsWith('RoleID:')) {
                     return message.reply('❌ Pesan ini bukan pesan Reaction Role aktif atau sudah dinonaktifkan sebelumnya.');
                 }
 
-                // Perbarui isi tampilan embed agar user tahu pendaftaran sudah ditutup
                 const updatedDescription = oldEmbed.description 
                     ? oldEmbed.description.replace(/👉 Klik emoji.*/g, '🛑 *Pendaftaran role ini sudah ditutup.*') 
                     : '🛑 *Pendaftaran role ini sudah ditutup.*';
@@ -81,24 +85,70 @@ module.exports = (client) => {
                 const disabledEmbed = {
                     title: oldEmbed.title || '📌 KLAIM ROLE KAMU',
                     description: updatedDescription,
-                    color: 0xcc0000, // Berubah menjadi merah penanda nonaktif
-                    footer: { text: 'Pendaftaran Ditutup' } // Menghapus teks pemicu "RoleID:xxxx"
+                    color: 0xcc0000, 
+                    footer: { text: 'Pendaftaran Ditutup' } 
                 };
 
-                // Edit pesan lama dengan data baru
                 await targetMessage.edit({ embeds: [disabledEmbed] });
-
-                // Bersihkan semua emoji reaksi yang menempel pada pesan tersebut
                 await targetMessage.reactions.removeAll().catch(() => 
                     console.log('Gagal menghapus reaksi otomatis. Pastikan bot memiliki izin ManageMessages.')
                 );
-
-                // Hapus pesan teks perintah admin agar chat tetap bersih
                 await message.delete().catch(() => {});
 
             } catch (error) {
                 console.error('Gagal menghentikan mreaction:', error);
                 message.reply('❌ Terjadi kesalahan internal saat mencoba menghentikan fungsi reaksi.');
+            }
+        }
+
+        // ==================== PERINTAH: !startmreaction ====================
+        if (command === 'startmreaction') {
+            const targetMessageId = args[0];
+            const emoji = args[1];
+            const roleMention = args[2];
+
+            if (!targetMessageId || !emoji || !roleMention) {
+                return message.reply('Format salah! Gunakan: `!startmreaction [MessageID] [Emoji] [@Role]`\nContoh: `!startmreaction 123456789012345678 🎉 @Role SPESIAL`');
+            }
+
+            try {
+                const targetMessage = await message.channel.messages.fetch(targetMessageId).catch(() => null);
+                
+                if (!targetMessage) {
+                    return message.reply('❌ Pesan tidak ditemukan di channel ini! Periksa kembali ID pesan Anda.');
+                }
+
+                if (!targetMessage.embeds || targetMessage.embeds.length === 0) {
+                    return message.reply('❌ Pesan tersebut tidak memiliki embed pemicu.');
+                }
+
+                const roleId = roleMention.replace(/[<@&>]/g, '');
+                const role = await message.guild.roles.fetch(roleId).catch(() => null);
+                if (!role) return message.reply('❌ Role tidak ditemukan! Pastikan kamu tag rolenya.');
+
+                const oldEmbed = targetMessage.embeds[0];
+                const newDescriptionArgs = args.slice(3).join(' ');
+                let updatedDescription = newDescriptionArgs || oldEmbed.description || '';
+                
+                updatedDescription = updatedDescription.replace(/🛑 \*Pendaftaran role ini sudah ditutup\.\*/g, '');
+                if (!updatedDescription.includes('👉 Klik emoji')) {
+                    updatedDescription = `${updatedDescription.trim()}\n\n👉 Klik emoji **${emoji}** di bawah ini untuk mengambil peran!`;
+                }
+
+                const activeEmbed = {
+                    title: oldEmbed.title || '📌 KLAIM ROLE KAMU',
+                    description: updatedDescription,
+                    color: 0xffaa00, 
+                    footer: { text: `RoleID:${roleId}` } 
+                };
+
+                await targetMessage.edit({ embeds: [activeEmbed] });
+                await targetMessage.react(emoji);
+                await message.delete().catch(() => {});
+
+            } catch (error) {
+                console.error('Gagal memulai ulang mreaction:', error);
+                message.reply('❌ Terjadi kesalahan internal saat mencoba mengaktifkan kembali fungsi reaksi.');
             }
         }
     });
@@ -107,12 +157,8 @@ module.exports = (client) => {
     client.on('messageReactionAdd', async (reaction, user) => {
         if (user.bot) return; 
 
-        if (reaction.partial) {
-            try { await reaction.fetch(); } catch (error) { return; }
-        }
-        if (reaction.message.partial) {
-            try { await reaction.message.fetch(); } catch (error) { return; }
-        }
+        if (reaction.partial) { try { await reaction.fetch(); } catch (error) { return; } }
+        if (reaction.message.partial) { try { await reaction.message.fetch(); } catch (error) { return; } }
 
         const message = reaction.message;
         if (!message.embeds || message.embeds.length === 0) return;
@@ -137,16 +183,12 @@ module.exports = (client) => {
         }
     });
 
-    // 3. EVENT: Mendeteksi lepas reaksi (UNTUK MENCABUT ROLE JIKA EMOJI DI-UNKLIK)
+    // 3. EVENT: Mendeteksi lepas reaksi (UNTUK MENCABUT ROLE)
     client.on('messageReactionRemove', async (reaction, user) => {
         if (user.bot) return; 
 
-        if (reaction.partial) {
-            try { await reaction.fetch(); } catch (error) { return; }
-        }
-        if (reaction.message.partial) {
-            try { await reaction.message.fetch(); } catch (error) { return; }
-        }
+        if (reaction.partial) { try { await reaction.fetch(); } catch (error) { return; } }
+        if (reaction.message.partial) { try { await reaction.message.fetch(); } catch (error) { return; } }
 
         const message = reaction.message;
         if (!message.embeds || message.embeds.length === 0) return;

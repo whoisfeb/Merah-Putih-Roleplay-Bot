@@ -21,7 +21,7 @@ const ALLOWED_ADMIN_ROLES = [
     '1392382455981412398', // GAME ENGINER ROLE
     '1392382455981412399', // FOUNDER ROLE
     '1514189664863518811', // MANAGEMENT ROLE
-    
+    '1520740881655664650', // DONATION SUPPORT ROLE
     '1392382455981412397', // DEVELOPER ROLE
     '1392382455981412396' // DEVELOPER DISCORD ROLE
 ];
@@ -423,7 +423,7 @@ module.exports = (client) => {
 
 
 
-                await ticketChannel.send({ content: `Halo ${interaction.user}, Admin <@&${ALLOWED_ADMIN_ROLES[2]}> akan segera melayani Anda.`, embeds: [embedInfo], components: [row] });
+                await ticketChannel.send({ content: `Halo ${interaction.user}, Admin <@&${ALLOWED_ADMIN_ROLES[3]}> akan segera melayani Anda.`, embeds: [embedInfo], components: [row] });
 
                 await safeReply(interaction, { content: `✅ Tiket Anda berhasil dibuat: ${ticketChannel}`, flags: 64 });
 
