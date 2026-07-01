@@ -50,15 +50,29 @@ async function safeReply(interaction, options = {}) {
 module.exports = (client) => {
     // --- PANEL UTAMA SETUP ---
     // Variabel status global (taruh di bagian paling atas file)
+    // Letakkan kedua variabel ini di bagian paling atas file (di luar event listener)
     let isTopupOpen = true; 
+    let lastTicketMessage = null; // Menyimpan info pesan tiket untuk di-update otomatis
 
     client.on('messageCreate', async (message) => {
-        if (message.content === '!setup-topup' && message.member && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        
+        // 1. PERINTAH SETUP TIKET DENGAN PESAN KUSTOM
+        if (message.content.startsWith('!setup-topup') && message.member && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
             
+            // Mengambil teks setelah kata '!setup-topup '
+            // Jika admin hanya mengetik '!setup-topup', gunakan pesan default
+            const args = message.content.slice('!setup-topup'.length).trim();
+            const customDescription = args.length > 0 
+                ? args 
+                : 'Silakan klik tombol di bawah untuk memulai proses Top Up atau melihat aturan.';
+
+            // Status teks awal saat pesan pertama kali dibuat
+            const statusText = isTopupOpen ? '🟢 **STATUS: BUKA**' : '🔴 **STATUS: TUTUP**';
+
             const embed = new EmbedBuilder()
                 .setTitle('🛒 Merah Putih Roleplay - Tiket Layanan')
-                .setDescription('Silakan klik tombol di bawah untuk memulai proses Top Up atau melihat aturan.')
-                .setColor('#5865F2')
+                .setDescription(`${customDescription}\n\n${statusText}`) // Menggabungkan pesan kustom & status
+                .setColor(isTopupOpen ? '#5865F2' : '#ED4245')
                 .setFooter({ text: 'Ottibonynyo Mods | Merah Putih' });
 
             const row = new ActionRowBuilder().addComponents(
@@ -66,7 +80,7 @@ module.exports = (client) => {
                     .setCustomId('buka_modal')
                     .setLabel('Buka Tiket')
                     .setEmoji('🎫')
-                    .setStyle(ButtonStyle.Primary), // Tombol SELALU AKTIF agar bisa diklik
+                    .setStyle(ButtonStyle.Primary),
                 new ButtonBuilder()
                     .setCustomId('lihat_rules')
                     .setLabel('Rules Top Up')
@@ -75,24 +89,82 @@ module.exports = (client) => {
             );
 
             try {
-                await message.channel.send({ embeds: [embed], components: [row] });
+                const sentMessage = await message.channel.send({ embeds: [embed], components: [row] });
+                
+                // Simpan info pesan ini agar statusnya bisa di-edit otomatis nanti
+                lastTicketMessage = {
+                    channelId: sentMessage.channel.id,
+                    messageId: sentMessage.id,
+                    descriptionText: customDescription // Simpan teks aslinya agar tidak hilang saat di-edit
+                };
+
+                // Hapus pesan perintah asli admin (!setup-topup)
                 if (message.deletable) await message.delete().catch(() => {});
             } catch (err) {
                 console.error('Gagal mengirim setup tiket:', err);
             }
         }
 
-        // Perintah admin untuk mengubah status
+        // 2. PERINTAH ADMIN UNTUK MENGUBAH STATUS & AUTO DELETE PREFIX
         if (message.member && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
-            if (message.content === '!topup open' || message.content === '!topup-open') {
+            const content = message.content.toLowerCase();
+
+            if (content === '!topup open' || content === '!topup-open') {
                 isTopupOpen = true;
-                await message.reply('🟢 Status top-up sekarang **BUKA**.');
-            } else if (message.content === '!topup close' || message.content === '!topup-close') {
+                
+                // Hapus pesan perintah asli admin (!topup-open)
+                if (message.deletable) await message.delete().catch(() => {});
+
+                // Kirim notifikasi sukses sementara, lalu hapus setelah 3 detik
+                const reply = await message.channel.send('🟢 Status top-up berhasil diubah menjadi **BUKA**.');
+                setTimeout(() => reply.delete().catch(() => {}), 3000);
+
+                // LOGIKA EDIT OTOMATIS: Update status pada pesan utama jika ada
+                if (lastTicketMessage) {
+                    try {
+                        const channel = await client.channels.fetch(lastTicketMessage.channelId);
+                        const msg = await channel.messages.fetch(lastTicketMessage.messageId);
+                        
+                        const updatedEmbed = EmbedBuilder.from(msg.embeds[0])
+                            .setDescription(`${lastTicketMessage.descriptionText}\n\n🟢 **STATUS: BUKA**`)
+                            .setColor('#5865F2');
+
+                        await msg.edit({ embeds: [updatedEmbed] });
+                    } catch (err) {
+                        console.error('Gagal memperbarui status pada embed utama:', err);
+                    }
+                }
+            } 
+            
+            else if (content === '!topup close' || content === '!topup-close') {
                 isTopupOpen = false;
-                await message.reply('🔴 Status top-up sekarang **TUTUP**.');
+
+                // Hapus pesan perintah asli admin (!topup-close)
+                if (message.deletable) await message.delete().catch(() => {});
+
+                // Kirim notifikasi sukses sementara, lalu hapus setelah 3 detik
+                const reply = await message.channel.send('🔴 Status top-up berhasil diubah menjadi **TUTUP**.');
+                setTimeout(() => reply.delete().catch(() => {}), 3000);
+
+                // LOGIKA EDIT OTOMATIS: Update status pada pesan utama jika ada
+                if (lastTicketMessage) {
+                    try {
+                        const channel = await client.channels.fetch(lastTicketMessage.channelId);
+                        const msg = await channel.messages.fetch(lastTicketMessage.messageId);
+                        
+                        const updatedEmbed = EmbedBuilder.from(msg.embeds[0])
+                            .setDescription(`${lastTicketMessage.descriptionText}\n\n🔴 **STATUS: TUTUP**`)
+                            .setColor('#ED4245');
+
+                        await msg.edit({ embeds: [updatedEmbed] });
+                    } catch (err) {
+                        console.error('Gagal memperbarui status pada embed utama:', err);
+                    }
+                }
             }
         }
     });
+
 
 
     client.on('interactionCreate', async (interaction) => {
