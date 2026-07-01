@@ -49,8 +49,12 @@ async function safeReply(interaction, options = {}) {
 
 module.exports = (client) => {
     // --- PANEL UTAMA SETUP ---
+    // Variabel status global (taruh di bagian paling atas file)
+    let isTopupOpen = true; 
+
     client.on('messageCreate', async (message) => {
-        if (message.content === '!setup-tiket' && message.member && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+        if (message.content === '!setup-topup' && message.member && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            
             const embed = new EmbedBuilder()
                 .setTitle('🛒 Merah Putih Roleplay - Tiket Layanan')
                 .setDescription('Silakan klik tombol di bawah untuk memulai proses Top Up atau melihat aturan.')
@@ -62,7 +66,7 @@ module.exports = (client) => {
                     .setCustomId('buka_modal')
                     .setLabel('Buka Tiket')
                     .setEmoji('🎫')
-                    .setStyle(ButtonStyle.Primary),
+                    .setStyle(ButtonStyle.Primary), // Tombol SELALU AKTIF agar bisa diklik
                 new ButtonBuilder()
                     .setCustomId('lihat_rules')
                     .setLabel('Rules Top Up')
@@ -77,7 +81,19 @@ module.exports = (client) => {
                 console.error('Gagal mengirim setup tiket:', err);
             }
         }
+
+        // Perintah admin untuk mengubah status
+        if (message.member && message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
+            if (message.content === '!topup open' || message.content === '!topup-open') {
+                isTopupOpen = true;
+                await message.reply('🟢 Status top-up sekarang **BUKA**.');
+            } else if (message.content === '!topup close' || message.content === '!topup-close') {
+                isTopupOpen = false;
+                await message.reply('🔴 Status top-up sekarang **TUTUP**.');
+            }
+        }
     });
+
 
     client.on('interactionCreate', async (interaction) => {
 
@@ -299,61 +315,45 @@ module.exports = (client) => {
 
         if (interaction.isButton() && interaction.customId === 'buka_modal') {
 
-            const category = interaction.guild.channels.cache.get(CATEGORY_ID);
+    // ===== TAMBAHKAN PENGECEKAN STATUS DI SINI =====
+    if (!isTopupOpen) {
+        return safeReply(interaction, {
+            content: '❌ **Maaf, layanan Top Up saat ini sedang ditutup.** Silakan coba lagi nanti atau tunggu info selanjutnya dari Admin.',
+            flags: 64 // Mengirim pesan rahasia (ephemeral) agar tidak mengotori channel
+        });
+    }
+    // ===============================================
 
-            if (!category) return safeReply(interaction, { content: "Error: Kategori tidak ditemukan!", flags: 64 });
+    const category = interaction.guild.channels.cache.get(CATEGORY_ID);
 
+    if (!category) return safeReply(interaction, { content: "Error: Kategori tidak ditemukan!", flags: 64 });
 
+    const existingTicket = category.children.cache.find(channel =>
+        channel.name.includes(interaction.user.username.toLowerCase())
+    );
 
-            const existingTicket = category.children.cache.find(channel =>
+    if (existingTicket) {
+        return safeReply(interaction, {
+            content: `❌ Anda sudah memiliki tiket yang masih terbuka di <#${existingTicket.id}>.`,
+            flags: 64
+        });
+    }
 
-                channel.name.includes(interaction.user.username.toLowerCase())
+    const modal = new ModalBuilder().setCustomId('form_tiket').setTitle('Formulir Detail Pesanan');
+    const ucp = new TextInputBuilder().setCustomId('ucp').setLabel("UCP / ID AKUN").setPlaceholder("Masukkan ID Akun Anda").setStyle(TextInputStyle.Short).setRequired(true);
+    const nama = new TextInputBuilder().setCustomId('nama').setLabel("NAMA KARAKTER").setPlaceholder("Masukkan Nama Karakter").setStyle(TextInputStyle.Short).setRequired(true);
+    const item = new TextInputBuilder().setCustomId('item').setLabel("ITEM TOPUP").setPlaceholder("Contoh: 1000 Gold / Mobil Skyline").setStyle(TextInputStyle.Paragraph).setRequired(true);
 
-            );
+    modal.addComponents(new ActionRowBuilder().addComponents(ucp), new ActionRowBuilder().addComponents(nama), new ActionRowBuilder().addComponents(item));
+    try {
+        await interaction.showModal(modal);
+    } catch (err) {
+        console.error('Gagal showModal:', err);
+        await safeReply(interaction, { content: '❌ Gagal membuka formulir. Coba lagi.', flags: 64 });
+    }
+    return;
+}
 
-
-
-            if (existingTicket) {
-
-                return safeReply(interaction, {
-
-                    content: `❌ Anda sudah memiliki tiket yang masih terbuka di <#${existingTicket.id}>.`,
-
-                    flags: 64
-
-                });
-
-            }
-
-
-
-            const modal = new ModalBuilder().setCustomId('form_tiket').setTitle('Formulir Detail Pesanan');
-
-            const ucp = new TextInputBuilder().setCustomId('ucp').setLabel("UCP / ID AKUN").setPlaceholder("Masukkan ID Akun Anda").setStyle(TextInputStyle.Short).setRequired(true);
-
-            const nama = new TextInputBuilder().setCustomId('nama').setLabel("NAMA KARAKTER").setPlaceholder("Masukkan Nama Karakter").setStyle(TextInputStyle.Short).setRequired(true);
-
-            const item = new TextInputBuilder().setCustomId('item').setLabel("ITEM TOPUP").setPlaceholder("Contoh: 1000 Gold / Mobil Skyline").setStyle(TextInputStyle.Paragraph).setRequired(true);
-
-
-
-            modal.addComponents(new ActionRowBuilder().addComponents(ucp), new ActionRowBuilder().addComponents(nama), new ActionRowBuilder().addComponents(item));
-
-            try {
-
-                await interaction.showModal(modal);
-
-            } catch (err) {
-
-                console.error('Gagal showModal:', err);
-
-                await safeReply(interaction, { content: '❌ Gagal membuka formulir. Coba lagi.', flags: 64 });
-
-            }
-
-            return;
-
-        }
 
 
 
