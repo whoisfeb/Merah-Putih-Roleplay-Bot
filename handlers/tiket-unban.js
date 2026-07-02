@@ -176,8 +176,6 @@ module.exports = (client) => {
         // STEP 1: TAMPILKAN DROPDOWN STAFF DULUAN
         if (interaction.isButton() && interaction.customId === 'open_unban_form') {
             try {
-                await interaction.deferReply({ ephemeral: true });
-
                 let staffMembers = [];
                 try {
                     const staffRole = await interaction.guild.roles.fetch(STAFF_LIST_ROLE);
@@ -194,8 +192,9 @@ module.exports = (client) => {
                 }
 
                 if (staffMembers.length === 0) {
-                    return await interaction.editReply({
-                        content: '❌ Tidak ada staff ditemukan. Hubungi server administrator.'
+                    return await interaction.reply({
+                        content: '❌ Tidak ada staff ditemukan. Hubungi server administrator.',
+                        ephemeral: true
                     });
                 }
 
@@ -229,43 +228,37 @@ module.exports = (client) => {
                     selectMenus.push(new ActionRowBuilder().addComponents(selectMenu));
                 }
 
-                await interaction.editReply({
+                await interaction.reply({
                     content: `📋 Silahkan pilih staff yang akan menangani tiket Anda (Total Staff: ${staffMembers.length}):`,
-                    components: selectMenus
+                    components: selectMenus,
+                    ephemeral: true
                 });
 
             } catch (err) {
                 console.error('[UNBAN HANDLER] Gagal menampilkan dropdown staff:', err);
                 try {
-                    if (interaction.deferred || interaction.replied) {
-                        await interaction.editReply({
-                            content: '❌ Terjadi kesalahan saat membuka form.'
-                        });
-                    } else {
-                        await interaction.reply({
-                            content: '❌ Terjadi kesalahan saat membuka form.',
-                            ephemeral: true
-                        });
-                    }
+                    await interaction.reply({
+                        content: '❌ Terjadi kesalahan saat membuka form.',
+                        ephemeral: true
+                    });
                 } catch (e) {
                     console.error('[UNBAN HANDLER] Gagal error reply dropdown staff:', e);
                 }
             }
         }
 
-        // STEP 2: TAMPILKAN FORM SETELAH PILIH STAFF
+        // STEP 2: TAMPILKAN FORM SETELAH PILIH STAFF (TANPA DEFER)
         if (interaction.isStringSelectMenu() && interaction.customId.startsWith('select_staff_')) {
             try {
-                await interaction.deferReply({ ephemeral: true });
-
                 const selectedStaffId = interaction.values[0];
                 const customIdParts = interaction.customId.replace('select_staff_', '').split('_page');
                 const sessionId = customIdParts[0];
                 const staffData = interaction.client.tempStaffData?.[sessionId];
 
                 if (!staffData) {
-                    return await interaction.editReply({
-                        content: '❌ Session tidak ditemukan. Silahkan coba lagi.'
+                    return await interaction.reply({
+                        content: '❌ Session tidak ditemukan. Silahkan coba lagi.',
+                        ephemeral: true
                     });
                 }
 
@@ -273,7 +266,7 @@ module.exports = (client) => {
                 staffData.selectedStaffId = selectedStaffId;
                 interaction.client.tempStaffData[sessionId] = staffData;
 
-                // Tampilkan form modal
+                // Tampilkan form modal TANPA DEFER
                 const modal = new ModalBuilder()
                     .setCustomId(`unban_form_modal_${sessionId}`)
                     .setTitle('Formulir Request Unbanned');
@@ -314,16 +307,10 @@ module.exports = (client) => {
             } catch (err) {
                 console.error('[UNBAN HANDLER] Gagal tampilkan form:', err);
                 try {
-                    if (interaction.deferred || interaction.replied) {
-                        await interaction.editReply({
-                            content: '❌ Terjadi kesalahan. Silahkan coba lagi.'
-                        });
-                    } else {
-                        await interaction.reply({
-                            content: '❌ Terjadi kesalahan. Silahkan coba lagi.',
-                            ephemeral: true
-                        });
-                    }
+                    await interaction.reply({
+                        content: '❌ Terjadi kesalahan. Silahkan coba lagi.',
+                        ephemeral: true
+                    });
                 } catch (e) {
                     console.error('[UNBAN HANDLER] Gagal error reply tampilkan form:', e);
                 }
