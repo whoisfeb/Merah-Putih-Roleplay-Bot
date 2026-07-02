@@ -203,34 +203,50 @@ module.exports = (client) => {
                 interaction.client.tempStaffData[sessionId] = {
                     userId: interaction.user.id,
                     userName: interaction.user.username,
+                    staffMembers: staffMembers,
+                    currentPage: 0,
                     timestamp: Date.now()
                 };
 
-                const selectMenus = [];
-                const maxOptionsPerMenu = 25;
+                const itemsPerPage = 25;
+                const totalPages = Math.ceil(staffMembers.length / itemsPerPage);
+                const startIdx = 0;
+                const endIdx = Math.min(itemsPerPage, staffMembers.length);
+                const currentStaff = staffMembers.slice(startIdx, endIdx);
 
-                for (let i = 0; i < staffMembers.length; i += maxOptionsPerMenu) {
-                    const chunk = staffMembers.slice(i, i + maxOptionsPerMenu);
-                    const pageNumber = Math.floor(i / maxOptionsPerMenu) + 1;
-                    const totalPages = Math.ceil(staffMembers.length / maxOptionsPerMenu);
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`select_staff_${sessionId}`)
+                    .setPlaceholder('Pilih Staff')
+                    .addOptions(
+                        currentStaff.map(staff => ({
+                            label: staff.name,
+                            value: staff.id,
+                            description: `Staff ID: ${staff.id}`
+                        }))
+                    );
 
-                    const selectMenu = new StringSelectMenuBuilder()
-                        .setCustomId(`select_staff_${sessionId}_page${pageNumber}`)
-                        .setPlaceholder(`Pilih Staff (Halaman ${pageNumber}/${totalPages})`)
-                        .addOptions(
-                            chunk.map(staff => ({
-                                label: staff.name,
-                                value: staff.id,
-                                description: `Staff ID: ${staff.id}`
-                            }))
-                        );
+                const components = [new ActionRowBuilder().addComponents(selectMenu)];
 
-                    selectMenus.push(new ActionRowBuilder().addComponents(selectMenu));
+                // Tambah navigation buttons jika ada lebih dari 1 halaman
+                if (totalPages > 1) {
+                    const navRow = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`staff_prev_${sessionId}`)
+                            .setLabel('Prev')
+                            .setStyle(ButtonStyle.Primary)
+                            .setDisabled(true), // Disabled di page pertama
+                        new ButtonBuilder()
+                            .setCustomId(`staff_next_${sessionId}`)
+                            .setLabel('Next')
+                            .setStyle(ButtonStyle.Primary)
+                            .setDisabled(totalPages === 1)
+                    );
+                    components.push(navRow);
                 }
 
                 await interaction.reply({
-                    content: `📋 Silahkan pilih staff yang akan menangani tiket Anda (Total Staff: ${staffMembers.length}):`,
-                    components: selectMenus,
+                    content: `📋 Silahkan pilih staff yang akan menangani tiket Anda (Total Staff: ${staffMembers.length}) - Halaman ${0 + 1}/${totalPages}:`,
+                    components: components,
                     ephemeral: true
                 });
 
@@ -247,12 +263,127 @@ module.exports = (client) => {
             }
         }
 
+        // HANDLE PREV BUTTON
+        if (interaction.isButton() && interaction.customId.startsWith('staff_prev_')) {
+            try {
+                const sessionId = interaction.customId.replace('staff_prev_', '');
+                const staffData = interaction.client.tempStaffData?.[sessionId];
+
+                if (!staffData) {
+                    return await interaction.reply({
+                        content: '❌ Session tidak ditemukan.',
+                        ephemeral: true
+                    });
+                }
+
+                staffData.currentPage = Math.max(0, staffData.currentPage - 1);
+
+                const itemsPerPage = 25;
+                const startIdx = staffData.currentPage * itemsPerPage;
+                const endIdx = Math.min(startIdx + itemsPerPage, staffData.staffMembers.length);
+                const currentStaff = staffData.staffMembers.slice(startIdx, endIdx);
+                const totalPages = Math.ceil(staffData.staffMembers.length / itemsPerPage);
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`select_staff_${sessionId}`)
+                    .setPlaceholder('Pilih Staff')
+                    .addOptions(
+                        currentStaff.map(staff => ({
+                            label: staff.name,
+                            value: staff.id,
+                            description: `Staff ID: ${staff.id}`
+                        }))
+                    );
+
+                const components = [new ActionRowBuilder().addComponents(selectMenu)];
+
+                const navRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`staff_prev_${sessionId}`)
+                        .setLabel('Prev')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(staffData.currentPage === 0),
+                    new ButtonBuilder()
+                        .setCustomId(`staff_next_${sessionId}`)
+                        .setLabel('Next')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(staffData.currentPage === totalPages - 1)
+                );
+                components.push(navRow);
+
+                await interaction.update({
+                    content: `📋 Silahkan pilih staff yang akan menangani tiket Anda (Total Staff: ${staffData.staffMembers.length}) - Halaman ${staffData.currentPage + 1}/${totalPages}:`,
+                    components: components
+                });
+
+            } catch (err) {
+                console.error('[UNBAN HANDLER] Gagal prev staff:', err);
+            }
+        }
+
+        // HANDLE NEXT BUTTON
+        if (interaction.isButton() && interaction.customId.startsWith('staff_next_')) {
+            try {
+                const sessionId = interaction.customId.replace('staff_next_', '');
+                const staffData = interaction.client.tempStaffData?.[sessionId];
+
+                if (!staffData) {
+                    return await interaction.reply({
+                        content: '❌ Session tidak ditemukan.',
+                        ephemeral: true
+                    });
+                }
+
+                const itemsPerPage = 25;
+                const totalPages = Math.ceil(staffData.staffMembers.length / itemsPerPage);
+                staffData.currentPage = Math.min(totalPages - 1, staffData.currentPage + 1);
+
+                const startIdx = staffData.currentPage * itemsPerPage;
+                const endIdx = Math.min(startIdx + itemsPerPage, staffData.staffMembers.length);
+                const currentStaff = staffData.staffMembers.slice(startIdx, endIdx);
+
+                const selectMenu = new StringSelectMenuBuilder()
+                    .setCustomId(`select_staff_${sessionId}`)
+                    .setPlaceholder('Pilih Staff')
+                    .addOptions(
+                        currentStaff.map(staff => ({
+                            label: staff.name,
+                            value: staff.id,
+                            description: `Staff ID: ${staff.id}`
+                        }))
+                    );
+
+                const components = [new ActionRowBuilder().addComponents(selectMenu)];
+
+                const navRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId(`staff_prev_${sessionId}`)
+                        .setLabel('Prev')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(staffData.currentPage === 0),
+                    new ButtonBuilder()
+                        .setCustomId(`staff_next_${sessionId}`)
+                        .setLabel('Next')
+                        .setStyle(ButtonStyle.Primary)
+                        .setDisabled(staffData.currentPage === totalPages - 1)
+                );
+                components.push(navRow);
+
+                await interaction.update({
+                    content: `📋 Silahkan pilih staff yang akan menangani tiket Anda (Total Staff: ${staffData.staffMembers.length}) - Halaman ${staffData.currentPage + 1}/${totalPages}:`,
+                    components: components
+                });
+
+            } catch (err) {
+                console.error('[UNBAN HANDLER] Gagal next staff:', err);
+            }
+        }
+
         // STEP 2: TAMPILKAN FORM SETELAH PILIH STAFF (TANPA DEFER)
         if (interaction.isStringSelectMenu() && interaction.customId.startsWith('select_staff_')) {
             try {
                 const selectedStaffId = interaction.values[0];
-                const customIdParts = interaction.customId.replace('select_staff_', '').split('_page');
-                const sessionId = customIdParts[0];
+                const sessionId = interaction.customId.replace('select_staff_', '');
                 const staffData = interaction.client.tempStaffData?.[sessionId];
 
                 if (!staffData) {
