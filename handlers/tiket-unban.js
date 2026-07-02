@@ -13,29 +13,24 @@ const {
 
 module.exports = (client) => {
     const CATEGORY_ID = '1392382459060162633';
-    const ADMIN_ROLE_ID = '1392382455947989066';
-    // Optional: isi ID channel log staff jika mau semua aksi di-log ke satu channel
-    const STAFF_LOG_CHANNEL_ID = '1519299286385561640'; // contoh: '123456789012345678'
+    const ADMIN_ROLE_ID = '1514189664863518811';
+    const STAFF_LIST_ROLE = '1392382455947989066';
+    const STAFF_LOG_CHANNEL_ID = '1519299286385561640';
 
-    // Helper: parse topic untuk ownerId, status unbanned, banned_admin_id, dan selected_admin
     async function readTicketMeta(channel) {
         let ownerId = null;
         let unbanned = false;
-        let bannedAdminId = null;
-        let selectedAdmin = null;
+        let selectedStaffId = null;
 
         if (channel.topic) {
             const ownerMatch = channel.topic.match(/ticketOwner:\s*(\d+)/i);
             if (ownerMatch) ownerId = ownerMatch[1];
             const unbannedMatch = channel.topic.match(/unbanned:\s*(true|false)/i);
             if (unbannedMatch) unbanned = unbannedMatch[1].toLowerCase() === 'true';
-            const bannedAdminMatch = channel.topic.match(/bannedAdmin:\s*(\d+)/i);
-            if (bannedAdminMatch) bannedAdminId = bannedAdminMatch[1];
-            const selectedAdminMatch = channel.topic.match(/selectedAdmin:\s*(\d+)/i);
-            if (selectedAdminMatch) selectedAdmin = selectedAdminMatch[1];
+            const staffMatch = channel.topic.match(/selectedStaff:\s*(\d+)/i);
+            if (staffMatch) selectedStaffId = staffMatch[1];
         }
 
-        // fallback: coba deteksi dari permission overwrites (cari member overwrite)
         if (!ownerId && channel.permissionOverwrites) {
             for (const [id, overwrite] of channel.permissionOverwrites.cache) {
                 if (id === channel.guild.id) continue;
@@ -50,16 +45,14 @@ module.exports = (client) => {
             }
         }
 
-        return { ownerId, unbanned, bannedAdminId, selectedAdmin };
+        return { ownerId, unbanned, selectedStaffId };
     }
 
-    // Helper: tulis/update topic untuk menyimpan meta
     async function writeTicketMeta(channel, meta = {}) {
         const existing = channel.topic || '';
         const ownerId = meta.ownerId;
         const unbanned = typeof meta.unbanned === 'boolean' ? meta.unbanned : null;
-        const bannedAdminId = meta.bannedAdminId;
-        const selectedAdmin = meta.selectedAdmin;
+        const selectedStaffId = meta.selectedStaffId;
 
         let newTopic = existing;
 
@@ -79,19 +72,11 @@ module.exports = (client) => {
             }
         }
 
-        if (bannedAdminId) {
-            if (/bannedAdmin:\s*\d+/i.test(newTopic)) {
-                newTopic = newTopic.replace(/bannedAdmin:\s*\d+/i, `bannedAdmin:${bannedAdminId}`);
+        if (selectedStaffId) {
+            if (/selectedStaff:\s*\d+/i.test(newTopic)) {
+                newTopic = newTopic.replace(/selectedStaff:\s*\d+/i, `selectedStaff:${selectedStaffId}`);
             } else {
-                newTopic = (newTopic ? newTopic + ' ; ' : '') + `bannedAdmin:${bannedAdminId}`;
-            }
-        }
-
-        if (selectedAdmin) {
-            if (/selectedAdmin:\s*\d+/i.test(newTopic)) {
-                newTopic = newTopic.replace(/selectedAdmin:\s*\d+/i, `selectedAdmin:${selectedAdmin}`);
-            } else {
-                newTopic = (newTopic ? newTopic + ' ; ' : '') + `selectedAdmin:${selectedAdmin}`;
+                newTopic = (newTopic ? newTopic + ' ; ' : '') + `selectedStaff:${selectedStaffId}`;
             }
         }
 
@@ -104,7 +89,6 @@ module.exports = (client) => {
         }
     }
 
-    // Helper: cek apakah interaction.user adalah admin
     function isAdmin(interaction) {
         try {
             return interaction.member.roles.cache.has(ADMIN_ROLE_ID);
@@ -113,7 +97,6 @@ module.exports = (client) => {
         }
     }
 
-    // Setup Command
     client.on('messageCreate', async (message) => {
         if (message.content === '!setup-unban') {
             const embed = new EmbedBuilder()
@@ -139,9 +122,6 @@ module.exports = (client) => {
 
     client.on('interactionCreate', async (interaction) => {
 
-        // =======================================================
-        // HANDLER UNTUK SLASH COMMAND /ADDTICKET (DARI INDEX.JS)
-        // =======================================================
         if (interaction.isChatInputCommand()) {
             if (interaction.commandName === 'addticket') {
                 try {
@@ -193,11 +173,109 @@ module.exports = (client) => {
             }
         }
 
-        // 1. MUNCULKAN MODAL (tanpa "Banned By Admin" - akan diganti dengan dropdown nanti)
+        // STEP 1: TAMPILKAN DROPDOWN STAFF DULUAN
         if (interaction.isButton() && interaction.customId === 'open_unban_form') {
             try {
+                await interaction.deferReply({ ephemeral: true });
+
+                let staffMembers = [];
+                try {
+                    const staffRole = await interaction.guild.roles.fetch(STAFF_LIST_ROLE);
+                    if (staffRole) {
+                        staffMembers = Array.from(staffRole.members.values())
+                            .map(member => ({
+                                id: member.id,
+                                name: member.user.username
+                            }))
+                            .sort((a, b) => a.name.localeCompare(b.name));
+                    }
+                } catch (err) {
+                    console.error('[UNBAN HANDLER] Gagal fetch staff members:', err);
+                }
+
+                if (staffMembers.length === 0) {
+                    return await interaction.editReply({
+                        content: '❌ Tidak ada staff ditemukan. Hubungi server administrator.'
+                    });
+                }
+
+                const sessionId = `${interaction.user.id}_${Date.now()}`;
+                interaction.client.tempStaffData = interaction.client.tempStaffData || {};
+                interaction.client.tempStaffData[sessionId] = {
+                    userId: interaction.user.id,
+                    userName: interaction.user.username,
+                    timestamp: Date.now()
+                };
+
+                const selectMenus = [];
+                const maxOptionsPerMenu = 25;
+
+                for (let i = 0; i < staffMembers.length; i += maxOptionsPerMenu) {
+                    const chunk = staffMembers.slice(i, i + maxOptionsPerMenu);
+                    const pageNumber = Math.floor(i / maxOptionsPerMenu) + 1;
+                    const totalPages = Math.ceil(staffMembers.length / maxOptionsPerMenu);
+
+                    const selectMenu = new StringSelectMenuBuilder()
+                        .setCustomId(`select_staff_${sessionId}_page${pageNumber}`)
+                        .setPlaceholder(`Pilih Staff (Halaman ${pageNumber}/${totalPages})`)
+                        .addOptions(
+                            chunk.map(staff => ({
+                                label: staff.name,
+                                value: staff.id,
+                                description: `Staff ID: ${staff.id}`
+                            }))
+                        );
+
+                    selectMenus.push(new ActionRowBuilder().addComponents(selectMenu));
+                }
+
+                await interaction.editReply({
+                    content: `📋 Silahkan pilih staff yang akan menangani tiket Anda (Total Staff: ${staffMembers.length}):`,
+                    components: selectMenus
+                });
+
+            } catch (err) {
+                console.error('[UNBAN HANDLER] Gagal menampilkan dropdown staff:', err);
+                try {
+                    if (interaction.deferred || interaction.replied) {
+                        await interaction.editReply({
+                            content: '❌ Terjadi kesalahan saat membuka form.'
+                        });
+                    } else {
+                        await interaction.reply({
+                            content: '❌ Terjadi kesalahan saat membuka form.',
+                            ephemeral: true
+                        });
+                    }
+                } catch (e) {
+                    console.error('[UNBAN HANDLER] Gagal error reply dropdown staff:', e);
+                }
+            }
+        }
+
+        // STEP 2: TAMPILKAN FORM SETELAH PILIH STAFF
+        if (interaction.isStringSelectMenu() && interaction.customId.startsWith('select_staff_')) {
+            try {
+                await interaction.deferReply({ ephemeral: true });
+
+                const selectedStaffId = interaction.values[0];
+                const customIdParts = interaction.customId.replace('select_staff_', '').split('_page');
+                const sessionId = customIdParts[0];
+                const staffData = interaction.client.tempStaffData?.[sessionId];
+
+                if (!staffData) {
+                    return await interaction.editReply({
+                        content: '❌ Session tidak ditemukan. Silahkan coba lagi.'
+                    });
+                }
+
+                // Simpan selected staff
+                staffData.selectedStaffId = selectedStaffId;
+                interaction.client.tempStaffData[sessionId] = staffData;
+
+                // Tampilkan form modal
                 const modal = new ModalBuilder()
-                    .setCustomId('unban_form_modal')
+                    .setCustomId(`unban_form_modal_${sessionId}`)
                     .setTitle('Formulir Request Unbanned');
 
                 modal.addComponents(
@@ -234,22 +312,37 @@ module.exports = (client) => {
                 await interaction.showModal(modal);
 
             } catch (err) {
-                console.error('[UNBAN HANDLER] Gagal showModal:', err);
+                console.error('[UNBAN HANDLER] Gagal tampilkan form:', err);
                 try {
-                    await interaction.reply({
-                        content: '❌ Gagal membuka formulir. Coba lagi.',
-                        ephemeral: true
-                    });
+                    if (interaction.deferred || interaction.replied) {
+                        await interaction.editReply({
+                            content: '❌ Terjadi kesalahan. Silahkan coba lagi.'
+                        });
+                    } else {
+                        await interaction.reply({
+                            content: '❌ Terjadi kesalahan. Silahkan coba lagi.',
+                            ephemeral: true
+                        });
+                    }
                 } catch (e) {
-                    console.error('[UNBAN HANDLER] Gagal error reply showModal:', e);
+                    console.error('[UNBAN HANDLER] Gagal error reply tampilkan form:', e);
                 }
             }
         }
 
-        // 2. PROSES TIKET SETELAH SUBMIT MODAL - TAMPILKAN DROPDOWN ADMIN
-        if (interaction.isModalSubmit() && interaction.customId === 'unban_form_modal') {
+        // STEP 3: PROSES FORM DAN BUAT TIKET
+        if (interaction.isModalSubmit() && interaction.customId.startsWith('unban_form_modal_')) {
             try {
                 await interaction.deferReply({ ephemeral: true });
+
+                const sessionId = interaction.customId.replace('unban_form_modal_', '');
+                const staffData = interaction.client.tempStaffData?.[sessionId];
+
+                if (!staffData || !staffData.selectedStaffId) {
+                    return await interaction.editReply({
+                        content: '❌ Data session tidak ditemukan. Silahkan coba lagi.'
+                    });
+                }
 
                 const data = {
                     ucp: interaction.fields.getTextInputValue('ucp'),
@@ -258,52 +351,73 @@ module.exports = (client) => {
                     time: interaction.fields.getTextInputValue('duration')
                 };
 
-                // Fetch admin role members untuk dropdown
-                let adminMembers = [];
+                let staffName = 'Unknown Staff';
                 try {
-                    const adminRole = await interaction.guild.roles.fetch(ADMIN_ROLE_ID);
-                    if (adminRole) {
-                        adminMembers = adminRole.members.map(member => ({
-                            id: member.id,
-                            name: member.user.username
-                        }));
-                    }
+                    const staffMember = await interaction.guild.members.fetch(staffData.selectedStaffId);
+                    staffName = staffMember.user.username;
                 } catch (err) {
-                    console.error('[UNBAN HANDLER] Gagal fetch admin members:', err);
+                    console.error('[UNBAN HANDLER] Gagal fetch staff member:', err);
                 }
 
-                if (adminMembers.length === 0) {
-                    return await interaction.editReply({
-                        content: '❌ Tidak ada admin ditemukan. Hubungi server administrator.'
-                    });
+                const randomID = Math.floor(1000 + Math.random() * 9000);
+                const rawChannelName = `unban-${data.ucp}-${randomID}`;
+                const cleanChannelName = rawChannelName.toLowerCase().replace(/[^a-z0-9-_]/g, '');
+
+                const ticketChannel = await interaction.guild.channels.create({
+                    name: cleanChannelName,
+                    type: ChannelType.GuildText,
+                    parent: CATEGORY_ID,
+                    topic: `ticketOwner:${staffData.userId} ; unbanned:false ; selectedStaff:${staffData.selectedStaffId}`,
+                    permissionOverwrites: [
+                        // Deny everyone
+                        { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                        // Allow ticket owner/creator
+                        { id: staffData.userId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                        // Allow admin role
+                        { id: ADMIN_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                        // Allow selected staff
+                        { id: staffData.selectedStaffId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+                    ],
+                });
+
+                const resultEmbed = new EmbedBuilder()
+                    .setTitle(`🎫 Tiket Unban: ${cleanChannelName.toUpperCase()}`)
+                    .setColor(0xFFFF00)
+                    .setDescription(
+                        `👤 **User**\n${staffData.userName} (${staffData.userId})\n\n` +
+                        `🖥️ **UCP**\n${data.ucp}\n\n` +
+                        `🎭 **Nama Karakter**\n${data.char}\n\n` +
+                        `⏳ **Durasi Banned**\n${data.time}\n\n` +
+                        `👮 **Staff Handling**\n${staffName}\n\n` +
+                        `📝 **Alasan Banned**\n${data.reason}`
+                    )
+                    .setTimestamp()
+                    .setFooter({ text: 'Sistem Tiket Unban', iconURL: interaction.guild.iconURL() });
+
+                const actionRow = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('mark_unbanned')
+                        .setLabel('Mark as Unbanned')
+                        .setStyle(ButtonStyle.Success),
+                    new ButtonBuilder()
+                        .setCustomId('close_ticket')
+                        .setLabel('Tutup Tiket')
+                        .setStyle(ButtonStyle.Danger)
+                );
+
+                await ticketChannel.send({
+                    content: `Halo <@${staffData.userId}> silahkan tunggu respon dari <@${staffData.selectedStaffId}> atau staff lainnya dari <@&${ADMIN_ROLE_ID}>`,
+                    embeds: [resultEmbed],
+                    components: [actionRow]
+                });
+
+                // Cleanup temp data
+                if (interaction.client.tempStaffData?.[sessionId]) {
+                    delete interaction.client.tempStaffData[sessionId];
                 }
-
-                // Buat dropdown menu untuk pilih admin
-                const selectMenu = new StringSelectMenuBuilder()
-                    .setCustomId(`select_admin_${interaction.user.id}_${Date.now()}`)
-                    .setPlaceholder('Pilih Admin yang mem-ban Anda')
-                    .addOptions(
-                        adminMembers.map(admin => ({
-                            label: admin.name,
-                            value: admin.id,
-                            description: `Admin ID: ${admin.id}`
-                        }))
-                    );
-
-                const row = new ActionRowBuilder().addComponents(selectMenu);
-
-                // Simpan data form ke interaction untuk diakses nanti
-                interaction.client.tempFormData = interaction.client.tempFormData || {};
-                interaction.client.tempFormData[`${interaction.user.id}_${Date.now()}`] = {
-                    ...data,
-                    userId: interaction.user.id,
-                    userName: interaction.user.username,
-                    timestamp: Date.now()
-                };
 
                 await interaction.editReply({
-                    content: '📋 Silahkan pilih admin yang mem-ban Anda:',
-                    components: [row]
+                    content: `✅ Tiket berhasil dibuat: ${ticketChannel}`
                 });
 
             } catch (err) {
@@ -325,133 +439,18 @@ module.exports = (client) => {
             }
         }
 
-        // 2.5 HANDLE SELECT MENU - BUAT TIKET SETELAH PILIH ADMIN
-        if (interaction.isStringSelectMenu() && interaction.customId.startsWith('select_admin_')) {
-            try {
-                await interaction.deferReply({ ephemeral: true });
-
-                const selectedAdminId = interaction.values[0];
-                const formDataKey = interaction.customId.replace('select_admin_', '');
-                const formData = interaction.client.tempFormData?.[formDataKey];
-
-                if (!formData) {
-                    return await interaction.editReply({
-                        content: '❌ Data form tidak ditemukan. Silahkan coba lagi.'
-                    });
-                }
-
-                // Get admin name
-                let adminName = 'Unknown Admin';
-                try {
-                    const adminMember = await interaction.guild.members.fetch(selectedAdminId);
-                    adminName = adminMember.user.username;
-                } catch (err) {
-                    console.error('[UNBAN HANDLER] Gagal fetch admin member:', err);
-                }
-
-                const randomID = Math.floor(1000 + Math.random() * 9000);
-                const rawChannelName = `unban-${formData.ucp}-${randomID}`;
-                const cleanChannelName = rawChannelName.toLowerCase().replace(/[^a-z0-9-_]/g, '');
-
-                // Buat ticket channel dengan permissions yang tepat
-                const ticketChannel = await interaction.guild.channels.create({
-                    name: cleanChannelName,
-                    type: ChannelType.GuildText,
-                    parent: CATEGORY_ID,
-                    topic: `ticketOwner:${formData.userId} ; unbanned:false ; bannedAdmin:${selectedAdminId} ; selectedAdmin:${selectedAdminId}`,
-                    permissionOverwrites: [
-                        // Deny everyone
-                        { id: interaction.guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                        // Allow ticket creator
-                        { id: formData.userId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-                        // Allow admin role
-                        { id: ADMIN_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-                        // Allow the selected admin who banned
-                        { id: selectedAdminId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
-                    ],
-                });
-
-                const resultEmbed = new EmbedBuilder()
-                    .setTitle(`🎫 Tiket Unban: ${cleanChannelName.toUpperCase()}`)
-                    .setColor(0xFFFF00)
-                    .setDescription(
-                        `👤 **User**\n${formData.userName} (${formData.userId})\n\n` +
-                        `🖥️ **UCP**\n${formData.ucp}\n\n` +
-                        `🎭 **Nama Karakter**\n${formData.char}\n\n` +
-                        `⏳ **Durasi Banned**\n${formData.time}\n\n` +
-                        `👮 **Banned By Admin**\n${adminName}\n\n` +
-                        `📝 **Alasan Banned**\n${formData.reason}`
-                    )
-                    .setTimestamp()
-                    .setFooter({ text: 'Sistem Tiket Unban', iconURL: interaction.guild.iconURL() });
-
-                const actionRow = new ActionRowBuilder().addComponents(
-                    new ButtonBuilder()
-                        .setCustomId('mark_unbanned')
-                        .setLabel('Mark as Unbanned')
-                        .setStyle(ButtonStyle.Success),
-                    new ButtonBuilder()
-                        .setCustomId('close_ticket')
-                        .setLabel('Tutup Tiket')
-                        .setStyle(ButtonStyle.Danger)
-                );
-
-                await ticketChannel.send({
-                    content: `Halo <@${formData.userId}> kirim screenshot banned & tunggu respon dari <@&${ADMIN_ROLE_ID}>`,
-                    embeds: [resultEmbed],
-                    components: [actionRow]
-                });
-
-                // Cleanup temp data
-                if (interaction.client.tempFormData?.[formDataKey]) {
-                    delete interaction.client.tempFormData[formDataKey];
-                }
-
-                await interaction.editReply({
-                    content: `✅ Tiket berhasil dibuat: ${ticketChannel}`
-                });
-
-            } catch (err) {
-                console.error('[UNBAN HANDLER] Gagal membuat tiket dari select menu:', err);
-                try {
-                    if (interaction.deferred || interaction.replied) {
-                        await interaction.editReply({
-                            content: '❌ Terjadi kesalahan saat membuat tiket.'
-                        });
-                    } else {
-                        await interaction.reply({
-                            content: '❌ Terjadi kesalahan saat membuat tiket.',
-                            ephemeral: true
-                        });
-                    }
-                } catch (e) {
-                    console.error('[UNBAN HANDLER] Gagal error reply select menu:', e);
-                }
-            }
-        }
-
-        // Handler untuk tombol "Mark as Unbanned" (Hanya Admin yang membuat ban atau admin role)
+        // Handler untuk tombol "Mark as Unbanned" (Hanya Admin Role dan Selected Staff)
         if (interaction.isButton() && interaction.customId === 'mark_unbanned') {
             try {
                 const channel = interaction.channel;
-                const { ownerId, selectedAdmin } = await readTicketMeta(channel);
+                const { ownerId, selectedStaffId } = await readTicketMeta(channel);
 
-                // Cek apakah user adalah admin role, ticket owner, atau admin yang mem-ban
                 const isAdminRole = isAdmin(interaction);
-                const isTicketOwner = interaction.user.id === ownerId;
-                const isBannedAdmin = selectedAdmin && interaction.user.id === selectedAdmin;
+                const isSelectedStaff = selectedStaffId && interaction.user.id === selectedStaffId;
 
-                if (!isAdminRole && !isTicketOwner && !isBannedAdmin) {
+                if (!isAdminRole && !isSelectedStaff) {
                     return await interaction.reply({
-                        content: '❌ Hanya admin role, pembuat tiket, atau admin yang mem-ban yang dapat menandai unban!',
-                        ephemeral: true
-                    });
-                }
-
-                // Hanya admin dan banned admin yang boleh klik tombol, owner tidak
-                if (!isAdminRole && !isBannedAdmin) {
-                    return await interaction.reply({
-                        content: '❌ Hanya admin role atau admin yang mem-ban yang dapat menandai unban!',
+                        content: '❌ Hanya admin role atau staff yang ditugaskan yang dapat menandai unban!',
                         ephemeral: true
                     });
                 }
@@ -463,7 +462,6 @@ module.exports = (client) => {
                     });
                 }
 
-                // coba kirim DM ke owner
                 let dmSuccess = false;
                 try {
                     const member = await interaction.guild.members.fetch(ownerId);
@@ -478,10 +476,8 @@ module.exports = (client) => {
                     dmSuccess = false;
                 }
 
-                // update topic -> unbanned:true
-                await writeTicketMeta(channel, { ownerId, unbanned: true, selectedAdmin });
+                await writeTicketMeta(channel, { ownerId, unbanned: true, selectedStaffId });
 
-                // kirim pesan di channel tiket untuk log (non-ephemeral)
                 const logMsg = dmSuccess
                     ? `✅ Pemilik tiket telah diberitahu lewat DM bahwa mereka sudah di-unban. Channel akan ditutup otomatis.`
                     : `⚠️ Gagal mengirim DM ke pemilik tiket. Pemilik mungkin mematikan DM; channel akan tetap ditutup otomatis.`;
@@ -508,7 +504,6 @@ module.exports = (client) => {
 
                 await interaction.reply({ content: '✅ User ditandai sebagai UNBANNED. Channel akan ditutup otomatis dalam 5 detik.', ephemeral: true });
 
-                // otomatis hapus channel setelah delay
                 setTimeout(() => channel.delete().catch(() => {}), 5000);
 
             } catch (err) {
@@ -521,24 +516,22 @@ module.exports = (client) => {
             }
         }
 
-        // 3. TUTUP TIKET (Hanya Admin Role dan Admin yang mem-ban - Tanpa Kirim Log)
+        // Handler untuk tombol "Close Ticket" (Hanya Admin Role dan Selected Staff)
         if (interaction.isButton() && interaction.customId === 'close_ticket') {
             try {
                 const channel = interaction.channel;
-                const { selectedAdmin } = await readTicketMeta(channel);
+                const { selectedStaffId } = await readTicketMeta(channel);
 
-                // Cek apakah user adalah admin role atau admin yang mem-ban
                 const isAdminRole = isAdmin(interaction);
-                const isBannedAdmin = selectedAdmin && interaction.user.id === selectedAdmin;
+                const isSelectedStaff = selectedStaffId && interaction.user.id === selectedStaffId;
 
-                if (!isAdminRole && !isBannedAdmin) {
+                if (!isAdminRole && !isSelectedStaff) {
                     return await interaction.reply({
-                        content: '❌ Hanya admin role atau admin yang mem-ban yang dapat menutup tiket!',
+                        content: '❌ Hanya admin role atau staff yang ditugaskan yang dapat menutup tiket!',
                         ephemeral: true
                     });
                 }
 
-                // Memberikan respon ke admin dan menghapus channel tanpa log
                 await interaction.reply({
                     content: '🗂️ Ticket akan ditutup dan dihapus dalam 5 detik.',
                     ephemeral: true
@@ -563,8 +556,6 @@ module.exports = (client) => {
 
     });
 
-
-    // Global error handlers
     process.on('unhandledRejection', (err) => console.error('[UNBAN HANDLER] UnhandledRejection:', err));
     process.on('uncaughtException', (err) => console.error('[UNBAN HANDLER] UncaughtException:', err));
 };
