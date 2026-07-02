@@ -183,7 +183,7 @@ module.exports = (client) => {
                         staffMembers = Array.from(staffRole.members.values())
                             .map(member => ({
                                 id: member.id,
-                                name: member.user.username
+                                name: member.displayName || member.user.username
                             }))
                             .sort((a, b) => a.name.localeCompare(b.name));
                     }
@@ -472,7 +472,7 @@ module.exports = (client) => {
                 let staffName = 'Unknown Staff';
                 try {
                     const staffMember = await interaction.guild.members.fetch(staffData.selectedStaffId);
-                    staffName = staffMember.user.username;
+                    staffName = staffMember.displayName || staffMember.user.username;
                 } catch (err) {
                     console.error('[UNBAN HANDLER] Gagal fetch staff member:', err);
                 }
