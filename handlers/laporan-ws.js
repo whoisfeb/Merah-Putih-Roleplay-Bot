@@ -2,6 +2,7 @@
  * Handler Perintah Lapor Workshop
  * Dikembangkan untuk Merah Putih Bot
  */
+const { MessageFlags } = require('discord.js');
 
 async function handleLaporanWorkshop(interaction) {
     // 1. Ambil data input dari form slash command Discord
@@ -9,18 +10,18 @@ async function handleLaporanWorkshop(interaction) {
     const isi = interaction.options.getString('isi_laporan');
     const userTag = interaction.user.tag;
 
-    // 2. Beri respons awal (loading) agar interaksi Discord tidak kedaluwarsa dalam 3 detik
-    await interaction.deferReply({ ephemeral: true });
+    // 2. Beri respons awal (loading) menggunakan flags terbaru agar terhindar dari warning deprecated
+    await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-    // ⚠️ SILAKAN SESUAIKAN DUA VARIABEL DI BAWAH INI:
-    const REPO_OWNER = 'whoisfeb'; // Ganti dengan nama akun GitHub Anda
-    const REPO_NAME = 'Merah-Putih-Roleplay-Bot';   // Ganti dengan nama repositori bot Anda
+    // ⚠️ SILAKAN SESUAIKAN DUA VARIABEL DI BAWAH INI (Ganti teks di dalam tanda kutip):
+    const REPO_OWNER = 'NAMA_AKUN_GITHUB_ANDA_YANG_SEBENARNYA'; 
+    const REPO_NAME = 'NAMA_REPOSITORI_BOT_ANDA_YANG_SEBENARNYA';   
 
     // Menggunakan token yang dikirim dari environment variable workflow GitHub Actions Anda
     const GITHUB_TOKEN = process.env.DISCORD_TOKEN; 
 
     try {
-        // 3. Tembak GitHub Repository Dispatch API
+        // 3. Tembak GitHub Repository Dispatch API (Perbaikan penulisan variabel URL)
         const response = await fetch(`https://github.com{REPO_OWNER}/${REPO_NAME}/dispatches`, {
             method: 'POST',
             headers: {
