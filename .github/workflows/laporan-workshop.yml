@@ -1,0 +1,41 @@
+name: Sistem Log Laporan Workshop
+
+on:
+  repository_dispatch:
+    types: [laporan_discord]
+
+jobs:
+  catat-laporan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ambil Kode Repositori
+        uses: actions/checkout@v4
+
+      - name: Buat Berkas Log Jika Belum Ada
+        run: |
+          if [ ! -f laporan.md ]; then
+            echo "# 📝 Log Laporan Kegiatan Workshop" > laporan.md
+            echo "Berikut adalah daftar rekapitulasi laporan yang dikirim melalui Discord Bot." >> laporan.md
+            echo "" >> laporan.md
+            echo "| Tanggal & Waktu (UTC) | Pengirim | Judul Materi | Detail Ringkasan |" >> laporan.md
+            echo "| :--- | :--- | :--- | :--- |" >> laporan.md
+          fi
+
+      - name: Tulis Baris Laporan Baru ke Tabel
+        run: |
+          # Mengambil data dari payload kiriman Discord Bot
+          TANGGAL=$(date +'%Y-%m-%d %H:%M')
+          USER="${{ github.event.client_payload.user }}"
+          MATERI="${{ github.event.client_payload.materi }}"
+          ISI="${{ github.event.client_payload.isi }}"
+          
+          # Memasukkan data ke dalam baris tabel Markdown
+          echo "| $TANGGAL | $USER | $MATERI | $ISI |" >> laporan.md
+
+      - name: Simpan Perubahan Kembali ke GitHub
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "Merah Putih Auto-Logger"
+          git add laporan.md
+          git commit -m "Notifikasi: Log workshop baru dari $USER [skip ci]"
+          git push
