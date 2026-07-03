@@ -47,6 +47,7 @@ const { setupAutoKarantinaHandler } = require('./handlers/auto-karantina');
 const { handleSendMessage } = require('./handlers/control.js');
 // Ganti baris impor giveaway Anda di bagian atas index.js menjadi seperti ini:
 const { handleGiveawayStart, handleGiveawayEnd } = require('./handlers/giveaway.js');
+const { handleLaporanWorkshop } = require('./handlers/laporan-ws.js'); 
 
 
 
@@ -266,9 +267,18 @@ const commands = [
             { name: 'file', type: 11, description: 'Unggah gambar, video, atau dokumen file', required: false },
             
             // Target Tujuan (Opsional di form, namun wajib diisi salah satu saat dijalankan)
-            { name: 'channel', type: 7, description: 'Pilih text channel target tujuan kirim', channel_types: [0, 5], required: false },
+            { name: 'channel', type: 7, description: 'Pilih text channel target tujuan kirim', channel_types:, required: false },
             { name: 'user', type: 6, description: 'Pilih akun user target tujuan kirim via DM', required: false },
         ],
+    },
+    // ➕ PERINTAH BARU: LAPORAN WORKSHOP
+    {
+        name: 'lapor-workshop',
+        description: 'Kirim laporan data hasil kegiatan workshop ke repositori GitHub',
+        options: [
+            { name: 'materi', type: 3, description: 'Judul materi / topik workshop yang dibahas', required: true },
+            { name: 'isi_laporan', type: 3, description: 'Detail ringkasan hasil laporan atau catatan penting', required: true }
+        ]
     }
 ];
 
@@ -338,7 +348,6 @@ client.once('ready', async () => {
 client.on('messageCreate', async (message) => {
     await antiLinkHandler(message, CONFIG);
     await messageMonitorHandler(message, CONFIG);
-
 });
 
 // PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
@@ -382,6 +391,17 @@ client.on('interactionCreate', async (interaction) => {
         }
         return; // Hentikan eksekusi setelah selesai
     }
+
+    // ➕ 3. LOGIKA UNTUK MENANGKAP PERINTAH LAPOR WORKSHOP
+    if (interaction.isChatInputCommand() && interaction.commandName === 'lapor-workshop') {
+        try {
+            await handleLaporanWorkshop(interaction);
+        } catch (err) {
+            console.error('[LAPOR WORKSHOP ERROR]', err);
+        }
+        return;
+    }
 });
 
 client.login(CONFIG.TOKEN);
+
