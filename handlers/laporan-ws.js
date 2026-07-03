@@ -10,19 +10,27 @@ async function handleLaporanWorkshop(interaction) {
     const isi = interaction.options.getString('isi_laporan');
     const userTag = interaction.user.tag;
 
-    // 2. Beri respons awal (loading) menggunakan flags terbaru agar terhindar dari warning deprecated
+    // 2. Beri respons awal (loading) menggunakan flags terbaru
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
     // Konfigurasi Repositori
-    const REPO_OWNER = 'whoisfeb'; // Nama pemilik akun/organisasi GitHub
-    const REPO_NAME = 'Merah-Putih-Roleplay-Bot'; // Nama repositori GitHub   
+    const REPO_OWNER = 'whoisfeb'; 
+    const REPO_NAME = 'Merah-Putih-Roleplay-Bot';    
 
-    // Memandangi GH_TOKEN dari GitHub Secrets
+    // Memanggil GH_TOKEN dari lingkungan kerja GitHub Secrets
     const GH_TOKEN = process.env.GH_TOKEN; 
 
-        try {
-        // 🔥 PERBAIKAN: Menggunakan ://github.com dan menyertakan simbol $ yang benar
-        const response = await fetch(`https://github.com/${REPO_OWNER}/${REPO_NAME}/dispatches`, {
+    // Pengaman: Jika token kosong, hentikan bot sebelum menembak API
+    if (!GH_TOKEN) {
+        console.error("CRITICAL ERROR: Variabel process.env.GH_TOKEN kosong atau tidak terbaca!");
+        return await interaction.editReply({ 
+            content: '❌ **Sistem Error!** Token keamanan internal bot belum terpasang di sistem Actions Anda.' 
+        });
+    }
+
+    try {
+        // 🔥 VALIDASI UTAMA: Endpoint resmi wajib mengarah ke ://github.com...
+        const response = await fetch(`https://://github.com${REPO_OWNER}/${REPO_NAME}/dispatches`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${GH_TOKEN}`,
@@ -31,7 +39,7 @@ async function handleLaporanWorkshop(interaction) {
                 'User-Agent': 'Merah-Putih-Bot-App'
             },
             body: JSON.stringify({
-                event_type: 'laporan_discord', // Nama pemicu untuk berkas workflow baru Anda
+                event_type: 'laporan_discord', 
                 client_payload: {
                     user: userTag,
                     materi: materi,
@@ -39,7 +47,6 @@ async function handleLaporanWorkshop(interaction) {
                 }
             })
         });
-
 
         // 4. Periksa apakah GitHub API menerima laporan dengan sukses (Status 204 No Content)
         if (response.status === 204 || response.ok) {
@@ -62,5 +69,4 @@ async function handleLaporanWorkshop(interaction) {
     }
 }
 
-// Ekspor fungsi agar dapat dipanggil menggunakan arsitektur destructuring di index.js
 module.exports = { handleLaporanWorkshop };
