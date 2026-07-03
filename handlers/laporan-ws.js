@@ -20,9 +20,9 @@ async function handleLaporanWorkshop(interaction) {
     // Memandangi GH_TOKEN dari GitHub Secrets
     const GH_TOKEN = process.env.GH_TOKEN; 
 
-    try {
-        // Alamat resmi menggunakan api.github.com dan format template literal ${} yang benar
-        const response = await fetch(`https://github.com{REPO_OWNER}/${REPO_NAME}/dispatches`, {
+        try {
+        // 🔥 PERBAIKAN: Menggunakan ://github.com dan menyertakan simbol $ yang benar
+        const response = await fetch(`https://://github.com/${REPO_OWNER}/${REPO_NAME}/dispatches`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${GH_TOKEN}`,
@@ -39,6 +39,7 @@ async function handleLaporanWorkshop(interaction) {
                 }
             })
         });
+
 
         // 4. Periksa apakah GitHub API menerima laporan dengan sukses (Status 204 No Content)
         if (response.status === 204 || response.ok) {
