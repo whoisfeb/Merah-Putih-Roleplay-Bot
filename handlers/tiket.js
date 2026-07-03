@@ -300,25 +300,23 @@ module.exports = (client) => {
         }
 
         // 1. LOGIKA CLAIMTOPUP = SELESAI DENGAN LOG
+                // 1. LOGIKA CLAIMTOPUP = SELESAI DENGAN LOG
         if (interaction.commandName === 'claimtopup') {
             const reason = interaction.options.getString('reason') || 'Tidak ada alasan';
+            // 📑 AMBIL FILE/GAMBAR BUKTI (OPSIONAL)
+            const buktiAttachment = interaction.options.getAttachment('bukti');
 
             const messages = await interaction.channel.messages.fetch({ limit: 100 });
             let logContent = `LOG TRANSKRIP: ${interaction.channel.name}\nDitutup Oleh: ${interaction.user.tag}\nAlasan: ${reason}\n----------------------------------------\n\n`;
-            // GANTI BAGIAN messages.reverse() YANG LAMA DENGAN INI:
+            
             messages.reverse().forEach(m => {
-                // 1. Tulis teks biasa jika ada
                 if (m.content) {
                     logContent += `[${m.createdAt.toLocaleString()}] ${m.author.tag}: ${m.content}\n`;
                 }
 
-                // 2. Cek apakah ada embed, jika ada, tulis isi field-nya
                 if (m.embeds && m.embeds.length > 0) {
                     m.embeds.forEach(embed => {
-                        // Tulis judul embed jika perlu
                         if (embed.title) logContent += `--- ${embed.title} ---\n`;
-                        
-                        // Tulis isi field (User, UCP, Karakter, Item)
                         if (embed.fields) {
                             embed.fields.forEach(field => {
                                 logContent += `${field.name}: ${field.value}\n`;
@@ -333,12 +331,17 @@ module.exports = (client) => {
                 const buffer = Buffer.from(logContent, 'utf-8');
                 const attachment = new AttachmentBuilder(buffer, { name: `${interaction.channel.name}-log.txt` });
                 
-                // Ambil user ID dari topic channel
+                // 📦 BUAT ARRAY UNTUK MENAMPUNG SEMUA LAMPIRAN YANG AKAN DIKIRIM
+                const filesToSend = [attachment];
+                if (buktiAttachment) {
+                    filesToSend.push(buktiAttachment); // Masukkan gambar bukti jika ada
+                }
+
                 const ticketOwnerId = interaction.channel.topic?.match(/user_id:(\d+)/)?.[1];
                 
                 await logChannel.send({
                     content: `✅ **TIKET SELESAI (via /claimtopup)**: Channel **${interaction.channel.name}** milik ${ticketOwnerId ? `<@${ticketOwnerId}>` : 'Unknown'} ditutup oleh ${interaction.user}.\n**Alasan:** ${reason}`,
-                    files: [attachment]
+                    files: filesToSend // Kirim log teks beserta gambar bukti sekaligus
                 }).catch(err => console.error('Gagal kirim log ke logChannel:', err));
             }
 
@@ -350,6 +353,7 @@ module.exports = (client) => {
             setTimeout(() => interaction.channel.delete().catch(console.error), 3000);
             return; // ✅ TAMBAHKAN INI
         }
+
 
         // 2. LOGIKA CLOSETOPUP = TUTUP TANPA LOG
         if (interaction.commandName === 'closetopup') {

@@ -223,11 +223,26 @@ const commands = [
         description: 'Menambahkan pengguna ke dalam tiket unban ini',
         options: [{ name: 'target', type: 6, description: 'Pengguna yang ingin dimasukkan ke tiket', required: true }],
     },
-    {
+        {
         name: 'claimtopup',
         description: 'Claim tiket topup dengan alasan',
-        options: [{ name: 'reason', type: 3, description: 'Alasan claim', required: true }]
+        options: [
+            { 
+                name: 'reason', 
+                type: 3, // String
+                description: 'Alasan claim', 
+                required: true 
+            },
+            // ➕ TAMBAHKAN OBJEK BARU DI BAWAH INI:
+            { 
+                name: 'bukti', 
+                type: 11, // 11 adalah tipe data untuk ATTACHMENT/FILE
+                description: 'Lampirkan bukti gambar atau file (Bisa Ctrl + V)', 
+                required: false // Dibuat false agar opsional
+            }
+        ]
     },
+
     {
         name: 'closetopup',
         description: 'Tutup tiket topup dengan alasan',
