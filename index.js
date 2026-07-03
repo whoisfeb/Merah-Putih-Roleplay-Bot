@@ -47,7 +47,6 @@ const { setupAutoKarantinaHandler } = require('./handlers/auto-karantina');
 const { handleSendMessage } = require('./handlers/control.js');
 // Ganti baris impor giveaway Anda di bagian atas index.js menjadi seperti ini:
 const { handleGiveawayStart, handleGiveawayEnd } = require('./handlers/giveaway.js');
-const { handleLaporanWorkshop } = require('./handlers/laporan-ws.js'); 
 
 
 
@@ -270,62 +269,7 @@ const commands = [
             { name: 'channel', type: 7, description: 'Pilih text channel target tujuan kirim', channel_types: [0, 5], required: false },
             { name: 'user', type: 6, description: 'Pilih akun user target tujuan kirim via DM', required: false },
         ],
-    },
-    // ➕ PERINTAH BARU: LAPORAN WORKSHOP
-    {
-    name: 'lapor-workshop',
-    description: 'Kirim laporan data hasil kegiatan workshop ke repositori GitHub',
-    options: [
-        { 
-            name: 'nama_pemilik', 
-            type: 3, 
-            description: 'Nama pemilik workshop', 
-            required: true 
-        },
-        { 
-            name: 'nama_workshop', 
-            type: 3, 
-            description: 'Nama workshop / kegiatan', 
-            required: true 
-        },
-        { 
-            name: 'lokasi', 
-            type: 3, 
-            description: 'Lokasi workshop (wajib)', 
-            required: true 
-        },
-        { 
-            name: 'jumlah_karyawan', 
-            type: 4, 
-            description: 'Jumlah karyawan peserta (wajib)', 
-            required: true 
-        },
-        { 
-            name: 'surat_izin', 
-            type: 11, 
-            description: 'Upload surat izin workshop (PDF/IMG)', 
-            required: true 
-        },
-        { 
-            name: 'foto_lokasi', 
-            type: 11, 
-            description: 'Upload foto lokasi (JPG/PNG)', 
-            required: true 
-        },
-        { 
-            name: 'foto_depan', 
-            type: 11, 
-            description: 'Upload foto depan workshop (JPG/PNG)', 
-            required: true 
-        },
-        { 
-            name: 'bukti_invoice', 
-            type: 11, 
-            description: 'Upload bukti invoice (PDF/IMG)', 
-            required: true 
-        }
-    ]
-}
+    }
 ];
 
 const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);
@@ -394,6 +338,7 @@ client.once('ready', async () => {
 client.on('messageCreate', async (message) => {
     await antiLinkHandler(message, CONFIG);
     await messageMonitorHandler(message, CONFIG);
+
 });
 
 // PAYMENT INTERACTION - HANDLE FIRST, IMMEDIATELY
@@ -437,17 +382,6 @@ client.on('interactionCreate', async (interaction) => {
         }
         return; // Hentikan eksekusi setelah selesai
     }
-
-    // ➕ 3. LOGIKA UNTUK MENANGKAP PERINTAH LAPOR WORKSHOP
-    if (interaction.isChatInputCommand() && interaction.commandName === 'lapor-workshop') {
-        try {
-            await handleLaporanWorkshop(interaction);
-        } catch (err) {
-            console.error('[LAPOR WORKSHOP ERROR]', err);
-        }
-        return;
-    }
 });
 
 client.login(CONFIG.TOKEN);
-
