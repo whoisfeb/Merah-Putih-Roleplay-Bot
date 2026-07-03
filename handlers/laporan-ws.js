@@ -30,7 +30,7 @@ async function handleLaporanWorkshop(interaction) {
 
     try {
         // 🔥 VALIDASI UTAMA: Endpoint resmi wajib mengarah ke ://github.com...
-        const response = await fetch(`https://://github.com/${REPO_OWNER}/${REPO_NAME}/dispatches`, {
+        const response = await fetch(`https://github.com/${REPO_OWNER}/${REPO_NAME}/dispatches`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${GH_TOKEN}`,
