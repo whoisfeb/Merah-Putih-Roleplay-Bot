@@ -273,13 +273,59 @@ const commands = [
     },
     // ➕ PERINTAH BARU: LAPORAN WORKSHOP
     {
-        name: 'lapor-workshop',
-        description: 'Kirim laporan data hasil kegiatan workshop ke repositori GitHub',
-        options: [
-            { name: 'materi', type: 3, description: 'Judul materi / topik workshop yang dibahas', required: true },
-            { name: 'isi_laporan', type: 3, description: 'Detail ringkasan hasil laporan atau catatan penting', required: true }
-        ]
-    }
+    name: 'lapor-workshop',
+    description: 'Kirim laporan data hasil kegiatan workshop ke repositori GitHub',
+    options: [
+        { 
+            name: 'nama_pemilik', 
+            type: 3, 
+            description: 'Nama pemilik workshop', 
+            required: true 
+        },
+        { 
+            name: 'nama_workshop', 
+            type: 3, 
+            description: 'Nama workshop / kegiatan', 
+            required: true 
+        },
+        { 
+            name: 'lokasi', 
+            type: 3, 
+            description: 'Lokasi workshop (wajib)', 
+            required: true 
+        },
+        { 
+            name: 'jumlah_karyawan', 
+            type: 4, 
+            description: 'Jumlah karyawan peserta (wajib)', 
+            required: true 
+        },
+        { 
+            name: 'surat_izin', 
+            type: 11, 
+            description: 'Upload surat izin workshop (PDF/IMG)', 
+            required: true 
+        },
+        { 
+            name: 'foto_lokasi', 
+            type: 11, 
+            description: 'Upload foto lokasi (JPG/PNG)', 
+            required: true 
+        },
+        { 
+            name: 'foto_depan', 
+            type: 11, 
+            description: 'Upload foto depan workshop (JPG/PNG)', 
+            required: true 
+        },
+        { 
+            name: 'bukti_invoice', 
+            type: 11, 
+            description: 'Upload bukti invoice (PDF/IMG)', 
+            required: true 
+        }
+    ]
+}
 ];
 
 const rest = new REST({ version: '10' }).setToken(CONFIG.TOKEN);

@@ -2,13 +2,12 @@ name: Sistem Log Laporan Workshop
 
 on:
   repository_dispatch:
-    types: [laporan_discord]
+    types: [laporan_discord, laporan_workshop_file]
 
 jobs:
   catat-laporan:
     runs-on: ubuntu-latest
     
-    # 💡 PERBAIKAN 1: Berikan izin menulis ke konten repositori agar GitHub Actions diizinkan melakukan push
     permissions:
       contents: write
 
@@ -16,38 +15,173 @@ jobs:
       - name: Ambil Kode Repositori
         uses: actions/checkout@v4
         with:
-          # 💡 PERBAIKAN 2: Gunakan token kustom Anda (GH_TOKEN) agar proses push tidak ditolak auth
           token: ${{ secrets.GH_TOKEN }}
 
-      - name: Buat Berkas Log Jika Belum Ada
+      - name: Buat Direktori Laporan Jika Belum Ada
         run: |
-          if [ ! -f laporan.md ]; then
-            echo "# 📝 Log Laporan Kegiatan Workshop" > laporan.md
-            echo "Berikut adalah daftar rekapitulasi laporan yang dikirim melalui Discord Bot." >> laporan.md
-            echo "" >> laporan.md
-            echo "| Tanggal & Waktu (UTC) | Pengirim | Judul Materi | Detail Ringkasan |" >> laporan.md
-            echo "| :--- | :--- | :--- | :--- |" >> laporan.md
+          mkdir -p laporan_workshop
+          mkdir -p laporan_workshop/files
+
+      - name: Handle Laporan Text (laporan_discord)
+        if: github.event.action == 'laporan_discord' || github.event_name == 'repository_dispatch'
+        run: |
+          # Cek tipe event
+          if [ "${{ github.event.client_payload.file }}" != "" ]; then
+            echo "Tipe: Laporan dengan File"
+          else
+            echo "Tipe: Laporan Text Biasa"
           fi
 
-      - name: Tulis Baris Laporan Baru ke Tabel
+      - name: Buat File Laporan Utama Jika Belum Ada
         run: |
-          # Mengambil data dari payload kiriman Discord Bot
+          LAPORAN_FILE="laporan_workshop/laporan.md"
+          if [ ! -f "$LAPORAN_FILE" ]; then
+            cat > "$LAPORAN_FILE" << 'EOF'
+          # 📝 Log Laporan Kegiatan Workshop
+          
+          Berikut adalah daftar rekapitulasi laporan yang dikirim melalui Discord Bot.
+          
+          ## Laporan Terbaru
+          
+          | Tanggal | Pengirim | Materi | Lokasi | Karyawan | Periode | File |
+          | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+          EOF
+          fi
+
+      - name: Tulis Baris Laporan Text
+        if: github.event.client_payload.materi != null && github.event.client_payload.file == null
+        run: |
           TANGGAL=$(date +'%Y-%m-%d %H:%M')
           USER="${{ github.event.client_payload.user }}"
           MATERI="${{ github.event.client_payload.materi }}"
           ISI="${{ github.event.client_payload.isi }}"
           
-          # Memasukkan data ke dalam baris tabel Markdown
-          echo "| $TANGGAL | $USER | $MATERI | $ISI |" >> laporan.md
+          # Escape special characters untuk markdown
+          ISI_ESCAPED="${ISI//|/\|}"
+          
+          echo "| $TANGGAL | $USER | $MATERI | - | - | - | - |" >> laporan_workshop/laporan.md
 
-      - name: Simpan Perubahan Kembali ke GitHub
+      - name: Download & Simpan File Laporan
+        if: github.event.client_payload.file != null
+        run: |
+          FILE_URL="${{ github.event.client_payload.file.url }}"
+          FILE_NAME="${{ github.event.client_payload.file.name }}"
+          FILE_TYPE="${{ github.event.client_payload.file.typeLabel }}"
+          
+          # Buat subfolder berdasarkan user ID dan tanggal
+          USER_DIR="laporan_workshop/files/${{ github.event.client_payload.userId }}_$(date +'%Y%m%d')"
+          mkdir -p "$USER_DIR"
+          
+          # Download file
+          curl -L "$FILE_URL" -o "$USER_DIR/$FILE_NAME"
+          echo "✅ File berhasil didownload: $FILE_NAME"
+
+      - name: Tulis Baris Laporan File
+        if: github.event.client_payload.file != null
+        run: |
+          TANGGAL=$(date +'%Y-%m-%d %H:%M')
+          USER="${{ github.event.client_payload.user }}"
+          FILE_NAME="${{ github.event.client_payload.file.name }}"
+          FILE_TYPE="${{ github.event.client_payload.file.typeLabel }}"
+          PERIODE="${{ github.event.client_payload.periodeLaporan }}"
+          PERIODE_NEXT="${{ github.event.client_payload.periodeBerikutnya }}"
+          
+          # Tulis ke laporan
+          echo "| $TANGGAL | $USER | $FILE_TYPE | - | - | $PERIODE | [📎 $FILE_NAME](./files) |" >> laporan_workshop/laporan.md
+
+      - name: Buat File Detail Laporan JSON
+        if: github.event.client_payload.file != null
+        run: |
+          USER_ID="${{ github.event.client_payload.userId }}"
+          TIMESTAMP=$(date +'%s')
+          DETAIL_FILE="laporan_workshop/detail_${USER_ID}_${TIMESTAMP}.json"
+          
+          cat > "$DETAIL_FILE" << 'EOF'
+          {
+            "pengirim": "${{ github.event.client_payload.user }}",
+            "userId": "${{ github.event.client_payload.userId }}",
+            "file": {
+              "name": "${{ github.event.client_payload.file.name }}",
+              "type": "${{ github.event.client_payload.file.typeLabel }}",
+              "size": "${{ github.event.client_payload.file.size }} KB",
+              "uploadedAt": "${{ github.event.client_payload.file.uploadedAt }}"
+            },
+            "periode": {
+              "laporan": "${{ github.event.client_payload.periodeLaporan }}",
+              "berikutnya": "${{ github.event.client_payload.periodeBerikutnya }}"
+            },
+            "tanggalDiterima": "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          }
+          EOF
+
+      - name: Simpan Perubahan ke GitHub
         env:
-          # Meneruskan variabel USER dari github event ke environment agar terbaca di commit message
           USER_NAME: ${{ github.event.client_payload.user }}
+          EVENT_TYPE: ${{ github.event.client_payload.file != null && 'File Upload' || 'Text Report' }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "Merah Putih Auto-Logger"
-          git add laporan.md
-          # Menggunakan variabel $USER_NAME yang aman dari environment env
-          git commit -m "Notifikasi: Log workshop baru dari $USER_NAME [skip ci]"
+          git add laporan_workshop/
+          
+          # Commit message berbeda berdasarkan tipe event
+          if [ "${{ github.event.client_payload.file }}" != "" ]; then
+            FILE_NAME="${{ github.event.client_payload.file.name }}"
+            git commit -m "📋 Laporan Workshop: Upload file dari $USER_NAME - $FILE_NAME [skip ci]" || true
+          else
+            git commit -m "📋 Laporan Workshop: Laporan text dari $USER_NAME [skip ci]" || true
+          fi
+          
           git push
+
+      - name: Kirim Notif Sukses ke Discord Webhook
+        if: success()
+        run: |
+          WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_URL }}"
+          USER="${{ github.event.client_payload.user }}"
+          FILE_TYPE="${{ github.event.client_payload.file.typeLabel }}"
+          FILE_NAME="${{ github.event.client_payload.file.name }}"
+          PERIODE="${{ github.event.client_payload.periodeLaporan }}"
+          PERIODE_NEXT="${{ github.event.client_payload.periodeBerikutnya }}"
+          
+          if [ "${{ github.event.client_payload.file }}" != "" ]; then
+            curl -X POST "$WEBHOOK_URL" \
+              -H "Content-Type: application/json" \
+              -d '{
+                "embeds": [{
+                  "title": "✅ Laporan Workshop Tersimpan di GitHub",
+                  "color": 3447003,
+                  "fields": [
+                    {"name": "Pengirim", "value": "'$USER'", "inline": true},
+                    {"name": "Tipe File", "value": "'$FILE_TYPE'", "inline": true},
+                    {"name": "Nama File", "value": "'$FILE_NAME'", "inline": false},
+                    {"name": "📅 Periode", "value": "'$PERIODE'", "inline": false},
+                    {"name": "🔄 Laporan Berikutnya", "value": "'$PERIODE_NEXT'", "inline": false},
+                    {"name": "Status", "value": "✅ Tersimpan di Repository", "inline": false}
+                  ],
+                  "timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",
+                  "footer": {"text": "Workshop Report System"}
+                }]
+              }'
+          fi
+
+      - name: Notif Error ke Discord
+        if: failure()
+        run: |
+          WEBHOOK_URL="${{ secrets.DISCORD_WEBHOOK_URL }}"
+          USER="${{ github.event.client_payload.user }}"
+          
+          curl -X POST "$WEBHOOK_URL" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "❌ Gagal Menyimpan Laporan Workshop",
+                "color": 15158332,
+                "fields": [
+                  {"name": "Pengirim", "value": "'$USER'", "inline": true},
+                  {"name": "Status", "value": "❌ Terjadi Kesalahan", "inline": true},
+                  {"name": "Detail", "value": "Silakan hubungi admin untuk bantuan lebih lanjut", "inline": false}
+                ],
+                "timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",
+                "footer": {"text": "Workshop Report System - ERROR"}
+              }]
+            }'
