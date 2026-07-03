@@ -14,8 +14,8 @@ async function handleLaporanWorkshop(interaction) {
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
     // ⚠️ SILAKAN SESUAIKAN DUA VARIABEL DI BAWAH INI (Ganti teks di dalam tanda kutip):
-    const REPO_OWNER = 'NAMA_AKUN_GITHUB_ANDA_YANG_SEBENARNYA'; 
-    const REPO_NAME = 'NAMA_REPOSITORI_BOT_ANDA_YANG_SEBENARNYA';   
+    const REPO_OWNER = 'Merah-Putih-Roleplay-Bot'; 
+    const REPO_NAME = 'whoisfeb';   
 
     // Menggunakan token yang dikirim dari environment variable workflow GitHub Actions Anda
     const GITHUB_TOKEN = process.env.DISCORD_TOKEN; 
