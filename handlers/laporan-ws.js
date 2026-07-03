@@ -17,11 +17,11 @@ async function handleLaporanWorkshop(interaction) {
     const REPO_OWNER = 'whoisfeb'; // Nama pemilik akun/organisasi GitHub
     const REPO_NAME = 'Merah-Putih-Roleplay-Bot'; // Nama repositori GitHub   
 
-    // 💡 PERBAIKAN 1: Memanggil GH_TOKEN (Sesuai nama Secret yang baru Anda buat di GitHub)
+    // Memandangi GH_TOKEN dari GitHub Secrets
     const GH_TOKEN = process.env.GH_TOKEN; 
 
     try {
-        // 🔥 PERBAIKAN 2: URL menggunakan api.github.com dan format template literal ${} yang benar
+        // Alamat resmi menggunakan api.github.com dan format template literal ${} yang benar
         const response = await fetch(`https://github.com{REPO_OWNER}/${REPO_NAME}/dispatches`, {
             method: 'POST',
             headers: {
