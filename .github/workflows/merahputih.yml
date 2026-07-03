@@ -27,7 +27,8 @@ jobs:
         run: npm install
 
       - name: Run Both Bots
-        # GANTI BAGIAN INI: Memanggil npm start agar menjalankan kedua file sekaligus
         run: npm start 
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          # 💡 PERBAIKAN: Token GitHub sekarang diteruskan ke dalam sistem Bot Anda
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
