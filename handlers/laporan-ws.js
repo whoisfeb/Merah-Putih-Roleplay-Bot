@@ -22,7 +22,7 @@ async function handleLaporanWorkshop(interaction) {
 
         try {
         // 🔥 PERBAIKAN: Menggunakan ://github.com dan menyertakan simbol $ yang benar
-        const response = await fetch(`https://://github.com/${REPO_OWNER}/${REPO_NAME}/dispatches`, {
+        const response = await fetch(`https://github.com/${REPO_OWNER}/${REPO_NAME}/dispatches`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${GH_TOKEN}`,
