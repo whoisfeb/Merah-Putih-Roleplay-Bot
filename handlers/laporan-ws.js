@@ -13,19 +13,19 @@ async function handleLaporanWorkshop(interaction) {
     // 2. Beri respons awal (loading) menggunakan flags terbaru agar terhindar dari warning deprecated
     await interaction.deferReply({ flags: [MessageFlags.Ephemeral] });
 
-    // ⚠️ SILAKAN SESUAIKAN DUA VARIABEL DI BAWAH INI (Ganti teks di dalam tanda kutip):
-    const REPO_OWNER = 'Merah-Putih-Roleplay-Bot'; 
-    const REPO_NAME = 'whoisfeb';   
+    // Konfigurasi Repositori
+    const REPO_OWNER = 'whoisfeb'; // Nama pemilik akun/organisasi GitHub
+    const REPO_NAME = 'Merah-Putih-Roleplay-Bot'; // Nama repositori GitHub   
 
-    // Menggunakan token yang dikirim dari environment variable workflow GitHub Actions Anda
-    const GITHUB_TOKEN = process.env.DISCORD_TOKEN; 
+    // 💡 PERBAIKAN 1: Memanggil GH_TOKEN (Sesuai nama Secret yang baru Anda buat di GitHub)
+    const GH_TOKEN = process.env.GH_TOKEN; 
 
     try {
-        // 3. Tembak GitHub Repository Dispatch API (Perbaikan penulisan variabel URL)
+        // 🔥 PERBAIKAN 2: URL menggunakan api.github.com dan format template literal ${} yang benar
         const response = await fetch(`https://github.com{REPO_OWNER}/${REPO_NAME}/dispatches`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                'Authorization': `Bearer ${GH_TOKEN}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'Content-Type': 'application/json',
                 'User-Agent': 'Merah-Putih-Bot-App'

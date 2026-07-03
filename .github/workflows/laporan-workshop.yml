@@ -7,9 +7,17 @@ on:
 jobs:
   catat-laporan:
     runs-on: ubuntu-latest
+    
+    # 💡 PERBAIKAN 1: Berikan izin menulis ke konten repositori agar GitHub Actions diizinkan melakukan push
+    permissions:
+      contents: write
+
     steps:
       - name: Ambil Kode Repositori
         uses: actions/checkout@v4
+        with:
+          # 💡 PERBAIKAN 2: Gunakan token kustom Anda (GH_TOKEN) agar proses push tidak ditolak auth
+          token: ${{ secrets.GH_TOKEN }}
 
       - name: Buat Berkas Log Jika Belum Ada
         run: |
@@ -33,9 +41,13 @@ jobs:
           echo "| $TANGGAL | $USER | $MATERI | $ISI |" >> laporan.md
 
       - name: Simpan Perubahan Kembali ke GitHub
+        env:
+          # Meneruskan variabel USER dari github event ke environment agar terbaca di commit message
+          USER_NAME: ${{ github.event.client_payload.user }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "Merah Putih Auto-Logger"
           git add laporan.md
-          git commit -m "Notifikasi: Log workshop baru dari $USER [skip ci]"
+          # Menggunakan variabel $USER_NAME yang aman dari environment env
+          git commit -m "Notifikasi: Log workshop baru dari $USER_NAME [skip ci]"
           git push
