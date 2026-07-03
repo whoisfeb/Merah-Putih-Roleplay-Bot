@@ -267,7 +267,7 @@ const commands = [
             { name: 'file', type: 11, description: 'Unggah gambar, video, atau dokumen file', required: false },
             
             // Target Tujuan (Opsional di form, namun wajib diisi salah satu saat dijalankan)
-            { name: 'channel', type: 7, description: 'Pilih text channel target tujuan kirim', channel_types:, required: false },
+            { name: 'channel', type: 7, description: 'Pilih text channel target tujuan kirim', channel_types: [0, 5], required: false },
             { name: 'user', type: 6, description: 'Pilih akun user target tujuan kirim via DM', required: false },
         ],
     },
