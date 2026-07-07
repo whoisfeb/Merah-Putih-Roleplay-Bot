@@ -620,18 +620,36 @@ module.exports = (client) => {
                     }
                 }
 
-                await interaction.reply({ content: '✅ User ditandai sebagai UNBANNED. Channel akan ditutup otomatis dalam 5 detik.', ephemeral: true });
+                                // --- BAGIAN YANG DIGANTI ---
+                await interaction.reply({ 
+                    content: '✅ User ditandai sebagai UNBANNED. Channel akan ditutup otomatis dalam 5 detik.', 
+                    ephemeral: true 
+                });
 
-                setTimeout(() => channel.delete().catch(() => {}), 5000);
+                // Menunggu 5 detik dengan aman
+                await new Promise(resolve => setTimeout(resolve, 5000));
+
+                try {
+                    await channel.delete();
+                    console.log(`[UNBAN HANDLER] Berhasil menghapus channel: ${channel.name}`);
+                } catch (deleteError) {
+                    console.error(`[UNBAN HANDLER] Gagal menghapus channel ${channel.name}:`, deleteError);
+                }
+                // ---------------------------
 
             } catch (err) {
                 console.error('[UNBAN HANDLER] Gagal mark_unbanned:', err);
                 try {
+                    // Gunakan followUp jika reply pertama di atas kemungkinan sudah terkirim sebelum error terjadi
+                    if (interaction.replied || interaction.deferred) {
+                        return await interaction.followUp({ content: '❌ Terjadi kesalahan saat menandai unban.', ephemeral: true });
+                    }
                     return await interaction.reply({ content: '❌ Terjadi kesalahan saat menandai unban.', ephemeral: true });
                 } catch (e) {
                     console.error('[UNBAN HANDLER] Gagal error reply mark_unbanned:', e);
                 }
             }
+
         }
 
         // Handler untuk tombol "Close Ticket" (Hanya Admin Role dan Selected Staff)
